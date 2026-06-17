@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SallPlan</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <section id="login-screen" class="login-screen">
+      <div class="login-panel">
+        <div class="brand-mark">SP</div>
+        <h1>SallPlan</h1>
+        <p class="muted">Raumplanung und Reservierungen fuer die Schule</p>
+
+        <form id="login-form" class="form-stack">
+          <label>
+            Benutzername
+            <input id="login-username" autocomplete="username" required>
+          </label>
+          <label>
+            Passwort
+            <input id="login-password" type="password" autocomplete="current-password" required>
+          </label>
+          <button class="primary-button" type="submit">Einloggen</button>
+          <p class="hint">
+            Demo-Zugang: <strong>admin</strong> / <strong>admin123</strong>.
+            Weitere Passwoerter stehen in der README.
+          </p>
+        </form>
+      </div>
+    </section>
+
+    <main id="app" class="app hidden">
+      <header class="topbar">
+        <button id="back-to-rooms" class="icon-button hidden" type="button" title="Zurueck zur Raumuebersicht" aria-label="Zurueck zur Raumuebersicht">←</button>
+        <div>
+          <div class="product-title">SallPlan</div>
+          <div id="page-subtitle" class="page-subtitle">Raeume</div>
+        </div>
+        <div class="topbar-actions">
+          <button id="my-reservations-button" class="ghost-button" type="button">Meine Reservierungen</button>
+          <button id="admin-button" class="ghost-button hidden" type="button">Admin</button>
+          <span id="current-user-pill" class="user-pill"></span>
+          <button id="logout-button" class="ghost-button" type="button">Logout</button>
+        </div>
+      </header>
+
+      <section id="room-overview" class="view">
+        <div class="toolbar">
+          <div>
+            <h2>Raeume</h2>
+            <p class="muted">Waehle einen Raum, um die Wochenansicht zu oeffnen.</p>
+          </div>
+          <div class="filters">
+            <label>
+              Raumtyp
+              <select id="room-type-filter">
+                <option value="all">Alle Raeume</option>
+                <option value="fixed_schedule">Klassensaele</option>
+                <option value="free_booking">Frei buchbare Raeume</option>
+              </select>
+            </label>
+            <label>
+              Suche
+              <input id="room-search" placeholder="Raum suchen ...">
+            </label>
+          </div>
+        </div>
+        <div id="room-grid" class="room-grid"></div>
+      </section>
+
+      <section id="room-detail" class="view hidden">
+        <div class="room-detail-header">
+          <div>
+            <button id="room-qr-link" class="link-button" type="button">QR-Link fuer diesen Raum kopieren</button>
+            <h2 id="room-title"></h2>
+            <p id="room-meta" class="muted"></p>
+            <div id="room-tags" class="tag-row"></div>
+          </div>
+          <div class="week-panel">
+            <button id="prev-week" class="icon-button" type="button" title="Vorherige Woche" aria-label="Vorherige Woche">‹</button>
+            <div>
+              <div id="week-label" class="week-label"></div>
+              <div id="week-rule" class="week-rule"></div>
+              <div class="week-jump">
+                <label>
+                  Datum waehlen
+                  <input id="week-date-picker" type="date">
+                </label>
+                <button id="today-week-button" class="ghost-button" type="button">Heute</button>
+              </div>
+            </div>
+            <button id="next-week" class="icon-button" type="button" title="Naechste Woche" aria-label="Naechste Woche">›</button>
+          </div>
+        </div>
+
+        <div id="schedule-actions" class="schedule-actions hidden">
+          <button id="edit-schedule-button" class="secondary-button" type="button">Stundenplan bearbeiten</button>
+          <button id="recurring-release-button" class="secondary-button" type="button">Dauerhafte Freigabe</button>
+        </div>
+
+        <div class="calendar-wrap">
+          <table id="room-calendar" class="calendar"></table>
+        </div>
+      </section>
+
+      <section id="my-reservations-view" class="view hidden">
+        <div class="toolbar">
+          <div>
+            <h2>Meine Reservierungen</h2>
+            <p class="muted">Alle Buchungen des aktuellen Benutzerkontos.</p>
+          </div>
+        </div>
+        <div id="my-reservations-list" class="list-panel"></div>
+      </section>
+
+      <section id="admin-view" class="view hidden">
+        <div class="toolbar">
+          <div>
+            <h2>Adminbereich</h2>
+            <p class="muted">Lokale Verwaltung fuer den Klick-Prototyp.</p>
+          </div>
+          <button id="reset-data-button" class="danger-button" type="button">Beispieldaten zuruecksetzen</button>
+        </div>
+
+        <div class="admin-grid">
+          <section class="admin-panel">
+            <h3>Lehrpersonen</h3>
+            <form id="teacher-form" class="form-grid">
+              <input name="name" placeholder="Name" required>
+              <input name="username" placeholder="Login" required>
+              <input name="password" placeholder="Startpasswort" required>
+              <select name="role">
+                <option value="subject_teacher">Nebenfachlehrer/in</option>
+                <option value="class_teacher">Klassenlehrer/in</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button class="primary-button" type="submit">Lehrperson anlegen</button>
+            </form>
+            <div id="teacher-list" class="compact-list"></div>
+          </section>
+
+          <section class="admin-panel">
+            <h3>Raeume</h3>
+            <form id="room-form" class="form-grid">
+              <input name="name" placeholder="Raumname" required>
+              <select name="type">
+                <option value="fixed_schedule">Klassensaal</option>
+                <option value="free_booking">Frei buchbarer Raum</option>
+              </select>
+              <input name="building" placeholder="Gebaeude" value="Hauptgebaeude">
+              <input name="floor" placeholder="Etage">
+              <input name="capacity" type="number" min="1" placeholder="Plaetze">
+              <select name="responsibleTeacherId" id="room-responsible-select"></select>
+              <button class="primary-button" type="submit">Raum anlegen</button>
+            </form>
+            <div id="admin-room-list" class="compact-list"></div>
+          </section>
+
+          <section class="admin-panel">
+            <h3>Ferien</h3>
+            <form id="holiday-form" class="form-grid">
+              <input name="name" placeholder="Ferienname" required>
+              <input name="startDate" type="date" required>
+              <input name="endDate" type="date" required>
+              <button class="primary-button" type="submit">Ferien eintragen</button>
+            </form>
+            <div id="holiday-list" class="compact-list"></div>
+          </section>
+
+          <section class="admin-panel">
+            <h3>Sperrungen</h3>
+            <form id="block-form" class="form-grid">
+              <select name="roomId" id="block-room-select"></select>
+              <input name="date" type="date" required>
+              <select name="slotId" id="block-slot-select"></select>
+              <input name="reason" placeholder="Grund, z. B. Reinigung" required>
+              <button class="primary-button" type="submit">Raum sperren</button>
+            </form>
+            <div id="block-list" class="compact-list"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <div id="modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal">
+        <button id="modal-close" class="modal-close" type="button" aria-label="Schliessen">×</button>
+        <h2 id="modal-title"></h2>
+        <div id="modal-body"></div>
+      </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
