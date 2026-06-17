@@ -1,10 +1,16 @@
 # SallPlan
 
-SallPlan ist ein lokaler Klick-Prototyp fuer die Verwaltung und Reservierung von Schulraeumen. Die App laeuft direkt im Browser mit HTML, CSS und JavaScript und speichert Daten im `LocalStorage`.
+SallPlan ist eine Web-App fuer die Verwaltung und Reservierung von Schulraeumen. Die aktuelle Version ist fuer Supabase vorbereitet. Solange Supabase noch nicht fertig eingerichtet ist, kann `config.js` wieder auf `mode: "demo"` gestellt werden.
 
 ## Start
 
 Oeffne `index.html` im Browser. Es ist kein Build-Schritt und keine Installation noetig.
+
+Online-Demo:
+
+```text
+https://reneyy.github.io/sallplan/
+```
 
 Demo-Logins:
 
@@ -51,7 +57,7 @@ Demo-Logins:
 
 ## Datenmodell
 
-Die Daten liegen in `data.js` und werden nach dem ersten Start in `LocalStorage` kopiert:
+Im Demo-Modus liegen die Daten in `data.js` und werden nach dem ersten Start in `LocalStorage` kopiert. Im Supabase-Modus kommen diese Daten aus den Tabellen:
 
 - `teachers`
 - `rooms`
@@ -66,11 +72,24 @@ Mit dem Button "Beispieldaten zuruecksetzen" werden lokale Aenderungen geloescht
 
 Hinweis: Das Zeitraster liegt als Tagesvorlage in `data.js`. Montag, Mittwoch, Freitag, Samstag und Sonntag nutzen die schwarzen Zeiten aus der Vorlage; Dienstag und Donnerstag nutzen die blauen Zeiten.
 
+## Supabase-Pilot
+
+Vorbereitet sind:
+
+- `supabase/schema.sql`: Tabellen, RLS-Regeln und Datenbank-Doppelbuchungsschutz.
+- `supabase/seed.sql`: optionale Startdaten.
+- `supabase/functions/admin-create-teacher/index.ts`: Edge Function fuer sichere Admin-Benutzeranlage.
+- `config.js`: aktuell Demo-Modus.
+- `config.sample.js`: Vorlage fuer Supabase-Projektwerte.
+- `SUPABASE_SETUP.md`: Schritt-fuer-Schritt-Anleitung.
+
+Die App zeigt oben "Demo" oder spaeter "Supabase", je nach Konfiguration.
+
 ## Zukuenftige Erweiterungen
 
-- Supabase-Login und zentrale PostgreSQL-Datenbank.
-- Sichere Passwortverwaltung.
-- Benutzerverwaltung mit Einladungen.
+- Supabase-Anbindung in `app.js` aktivieren.
+- Sichere Passwortverwaltung ueber Supabase Auth.
+- Benutzerverwaltung mit Edge Function.
 - QR-Codes als PDF pro Raum.
 - Kalenderexport.
 - PDF-Export der Wochenplaene.

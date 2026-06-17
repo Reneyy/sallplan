@@ -156,6 +156,7 @@ h3 {
 }
 
 .user-pill,
+.mode-pill,
 .availability-pill,
 .tag {
   display: inline-flex;
@@ -167,6 +168,11 @@ h3 {
   color: #3730a3;
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.mode-pill {
+  background: #fff7ed;
+  color: #9a3412;
 }
 
 .view {
