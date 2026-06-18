@@ -1,10 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="de">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SallPlan</title>
-    <link rel="stylesheet" href="./style.css?v=20260618-5">
+    <link rel="stylesheet" href="./style.css?v=20260618-6">
     <style>
       .hidden { display: none !important; }
       body { margin: 0; min-height: 100vh; background: #f6f7fb; color: #1f2937; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -50,7 +50,7 @@
 
     <main id="app" class="app hidden">
       <header class="topbar">
-        <button id="back-to-rooms" class="icon-button hidden" type="button" title="Zurueck" aria-label="Zurueck">←</button>
+        <button id="back-to-rooms" class="icon-button hidden" type="button" title="Zurueck" aria-label="Zurueck">â†</button>
         <div>
           <div class="product-title">SallPlan</div>
           <div id="page-subtitle" class="page-subtitle">Start</div>
@@ -105,7 +105,7 @@
             <div id="room-tags" class="tag-row"></div>
           </div>
           <div class="week-panel">
-            <button id="prev-week" class="icon-button" type="button" title="Vorherige Woche" aria-label="Vorherige Woche">‹</button>
+            <button id="prev-week" class="icon-button" type="button" title="Vorherige Woche" aria-label="Vorherige Woche">â€¹</button>
             <div>
               <div id="week-label" class="week-label"></div>
               <div id="week-rule" class="week-rule"></div>
@@ -114,12 +114,13 @@
                 <button id="today-week-button" class="ghost-button" type="button">Heute</button>
               </div>
             </div>
-            <button id="next-week" class="icon-button" type="button" title="Naechste Woche" aria-label="Naechste Woche">›</button>
+            <button id="next-week" class="icon-button" type="button" title="Naechste Woche" aria-label="Naechste Woche">â€º</button>
           </div>
         </div>
         <div id="schedule-actions" class="schedule-actions hidden">
           <button id="edit-schedule-button" class="secondary-button" type="button">Stundenplan bearbeiten</button>
           <button id="recurring-release-button" class="secondary-button" type="button">Dauerhafte Freigabe</button>
+          <button id="schedule-import-button" class="secondary-button" type="button">Stundenplan importieren</button>
         </div>
         <div class="calendar-wrap"><table id="room-calendar" class="calendar"></table></div>
       </section>
@@ -134,25 +135,32 @@
 
       <section id="material-view" class="view hidden">
         <div class="toolbar">
-          <div><h2>Materialausleihe</h2><p class="muted">Materialien waehlen und fuer einen Slot ausleihen.</p></div>
-          <button id="material-admin-button" class="primary-button hidden" type="button">Material verwalten</button>
+          <div><h2>Materialausleihe</h2><p class="muted">Kalenderzeit waehlen, Material und Anzahl eintragen.</p></div>
+          <div class="filters">
+            <button id="material-ticket-button" class="secondary-button" type="button">Ticket an Admin</button>
+            <button id="material-admin-button" class="primary-button hidden" type="button">Material verwalten</button>
+          </div>
         </div>
-        <div id="material-grid" class="room-grid"></div>
+        <div class="week-panel material-week-panel">
+          <button id="material-prev-week" class="icon-button" type="button" aria-label="Vorherige Woche">‹</button>
+          <strong id="material-week-label"></strong>
+          <button id="material-next-week" class="icon-button" type="button" aria-label="Naechste Woche">›</button>
+          <button id="material-today-button" class="ghost-button" type="button">Heute</button>
+        </div>
+        <div id="material-grid" class="calendar-wrap"></div>
       </section>
 
       <section id="teacher-timetables-view" class="view hidden">
-        <div class="toolbar"><div><h2>Lehrerstundenplaene</h2><p class="muted">Lehrperson auswaehlen und PDF-Stundenplan anzeigen.</p></div></div>
-        <div class="split-layout">
-          <div class="list-panel">
-            <label>Lehrperson<select id="teacher-timetable-select"></select></label>
-            <div id="teacher-timetable-actions" class="form-stack hidden">
-              <label>PDF-Datei<input id="teacher-timetable-file" type="file" accept="application/pdf"></label>
-              <button id="teacher-timetable-save" class="primary-button" type="button">PDF hochladen</button>
-              <p class="hint">Das PDF wird in Supabase gespeichert und danach fuer eingeloggte Benutzer angezeigt.</p>
-            </div>
+        <div class="toolbar"><div><h2>Lehrerstundenplaene</h2><p class="muted">Lehrperson anklicken und PDF-Stundenplan anzeigen.</p></div></div>
+        <div id="teacher-timetable-grid" class="module-grid"></div>
+        <div class="hidden">
+          <select id="teacher-timetable-select"></select>
+          <div id="teacher-timetable-actions" class="form-stack hidden">
+            <input id="teacher-timetable-file" type="file" accept="application/pdf">
+            <button id="teacher-timetable-save" class="primary-button" type="button">PDF hochladen</button>
           </div>
-          <div id="teacher-timetable-preview" class="pdf-preview"></div>
         </div>
+        <div id="teacher-timetable-preview" class="pdf-preview"></div>
       </section>
 
       <section id="my-reservations-view" class="view hidden">
@@ -243,9 +251,12 @@
       </div>
     </div>
 
-    <script src="./config.js?v=20260618-5"></script>
-    <script src="./data.js?v=20260618-5"></script>
+    <script src="./config.js?v=20260618-6"></script>
+    <script src="./data.js?v=20260618-6"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=20260618-5"></script>
+    <script src="./app.js?v=20260618-6"></script>
   </body>
 </html>
+
+
+

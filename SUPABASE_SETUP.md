@@ -1,4 +1,4 @@
-# SallPlan mit Supabase verbinden
+﻿# SallPlan mit Supabase verbinden
 
 Diese Anleitung ist fuer die echte gemeinsame Version. Danach sehen alle Lehrpersonen dieselben Reservierungen.
 
@@ -34,7 +34,7 @@ Wenn deine Datenbank schon existiert, musst du `schema.sql` und `seed.sql` nicht
 supabase/migration_20260618_features.sql
 ```
 
-Diese Migration legt auch den geschuetzten Supabase-Storage-Bucket fuer PDF-Lehrerstundenplaene an.
+Diese Migration legt auch den geschuetzten Supabase-Storage-Bucket fuer PDF-Lehrerstundenplaene an. Sie erweitert ausserdem die Materialausleihe um Bestand, Anzahl, Name/Klasse und Material-Tickets.
 
 ## 2. Ersten Admin-Login anlegen
 
@@ -98,7 +98,7 @@ Wichtig: Erst die Migration in Supabase ausfuehren, dann GitHub aktualisieren.
 
 Fuer die richtig bequeme Admin-Funktion "Lehrperson anlegen" muss spaeter die Edge Function in `supabase/functions/admin-create-teacher` deployed werden.
 
-Bis dahin kannst du Lehrpersonen zuerst manuell in Supabase unter **Authentication → Users** anlegen und dann ihre UID in der Tabelle `teachers` eintragen.
+Bis dahin kannst du Lehrpersonen zuerst manuell in Supabase unter **Authentication â†’ Users** anlegen und dann ihre UID in der Tabelle `teachers` eintragen.
 
 Beispiel:
 
@@ -123,3 +123,4 @@ eischen@sallplan.local
 ## Wichtig
 
 Den `service_role` Key nie in GitHub hochladen und nie in `config.js` eintragen.
+

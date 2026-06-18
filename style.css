@@ -895,3 +895,29 @@ textarea:focus {
     padding: 24px;
   }
 }
+
+.material-week-panel {
+  justify-content: flex-start;
+  margin-bottom: 14px;
+}
+
+.material-calendar .calendar-cell {
+  min-height: 128px;
+}
+
+.upload-card::before {
+  background: linear-gradient(90deg, #16a34a, #2563eb);
+}
+
+#teacher-timetable-grid {
+  margin-bottom: 16px;
+}
+
+.pdf-preview {
+  margin-top: 16px;
+}
+
+.compact-item.is-muted {
+  opacity: 0.68;
+  background: #f8fafc;
+}

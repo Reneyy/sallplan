@@ -1,4 +1,4 @@
-const SALLPLAN_STORAGE_KEY = "sallplan.prototype.v3";
+﻿const SALLPLAN_STORAGE_KEY = "sallplan.prototype.v4";
 
 const DAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
@@ -113,17 +113,18 @@ function createDefaultState() {
       { id: "evt1", title: "Paedagogischer Tag", date: formatDate(addDays(currentMonday, 10)), slotId: "row1", note: "Schulinterne Weiterbildung", createdBy: "admin" }
     ],
     materials: [
-      { id: "mat1", name: "iPad-Koffer", code: "IPAD", iconLabel: "IP", active: true },
-      { id: "mat2", name: "Beamer mobil", code: "BEAM", iconLabel: "BM", active: true },
-      { id: "mat3", name: "Lautsprecher", code: "AUDIO", iconLabel: "LS", active: true },
-      { id: "mat4", name: "Blue-Bots", code: "BBOT", iconLabel: "BB", active: true },
-      { id: "mat5", name: "Kamera", code: "CAM", iconLabel: "KA", active: true },
-      { id: "mat6", name: "Sportmaterial", code: "SPORT", iconLabel: "SP", active: true },
-      { id: "mat7", name: "Buecherkiste", code: "BOOK", iconLabel: "BK", active: true },
-      { id: "mat8", name: "Experimentierbox", code: "EXP", iconLabel: "EX", active: true },
-      { id: "mat9", name: "Moderationsmaterial", code: "MOD", iconLabel: "MO", active: true }
+      { id: "mat1", name: "iPad-Koffer", code: "IPAD", iconLabel: "IP", stock: 20, active: true },
+      { id: "mat2", name: "Beamer mobil", code: "BEAM", iconLabel: "BM", stock: 2, active: true },
+      { id: "mat3", name: "Lautsprecher", code: "AUDIO", iconLabel: "LS", stock: 4, active: true },
+      { id: "mat4", name: "Blue-Bots", code: "BBOT", iconLabel: "BB", stock: 12, active: true },
+      { id: "mat5", name: "Kamera", code: "CAM", iconLabel: "KA", stock: 2, active: true },
+      { id: "mat6", name: "Sportmaterial", code: "SPORT", iconLabel: "SP", stock: 10, active: true },
+      { id: "mat7", name: "Buecherkiste", code: "BOOK", iconLabel: "BK", stock: 6, active: true },
+      { id: "mat8", name: "Experimentierbox", code: "EXP", iconLabel: "EX", stock: 5, active: true },
+      { id: "mat9", name: "Moderationsmaterial", code: "MOD", iconLabel: "MO", stock: 8, active: true }
     ],
     materialReservations: [],
+    materialTickets: [],
     teacherTimetables: []
   };
 }
@@ -194,3 +195,5 @@ function formatDate(date) {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+

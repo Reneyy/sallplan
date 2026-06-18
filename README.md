@@ -1,4 +1,4 @@
-# SallPlan
+﻿# SallPlan
 
 SallPlan ist eine Web-App fuer die Verwaltung und Reservierung von Schulraeumen. Die aktuelle Version laeuft im Supabase-Modus. Fuer reine lokale Tests kann `config.js` auf `mode: "demo"` gestellt werden.
 
@@ -42,9 +42,9 @@ Demo-Logins:
 - Admin kann Lehrpersonen, Raeume, Ferien, Sperrungen, Import und Einstellungen getrennt verwalten.
 - Admin kann Lehrpersonen, Raeume und Ferien loeschen.
 - Admin kann Raumkarten mit Saalnummer, Initialen und Lehrerzuweisungen bearbeiten.
-- Materialausleihe mit Beispieldaten und Doppelbuchungsschutz.
+- Materialausleihe als Wochenkalender mit Bestand, Anzahl, Name, Klasse, Notiz und Doppelbuchungsschutz.
 - Monatskalender fuer Ferien und Termine.
-- Lehrerstundenplaene koennen als PDF lokal in der App angezeigt werden.
+- Lehrerstundenplaene erscheinen als Lehrpersonen-Kacheln; Admin kann PDFs hochladen und wieder loeschen.
 - Admin kann einzelne Raeume fuer konkrete Termine sperren.
 - Ferien gelten fuer alle Raeume und erscheinen farblich getrennt.
 - QR-faehige Raumlinks ueber `index.html?roomId=r1`.
@@ -57,7 +57,7 @@ Demo-Logins:
 ## Rollen
 
 - Admin: darf alles einsehen und lokal verwalten.
-- Klassenlehrer/in, TAP, EPS, I-EBS, Éd.grad und Concierge: duerfen alles einsehen, buchen und zugewiesene Raeume verwalten.
+- Klassenlehrer/in, TAP, EPS, I-EBS, Ã‰d.grad und Concierge: duerfen alles einsehen, buchen und zugewiesene Raeume verwalten.
 - A-EBS, Autre und Intervenant: duerfen alles einsehen und buchbare Slots reservieren.
 
 ## Datenmodell
@@ -108,3 +108,4 @@ Die App zeigt oben "Demo" oder spaeter "Supabase", je nach Konfiguration.
 - Import echter Stundenplaene.
 - Mehrsprachigkeit Deutsch/Franzoesisch.
 - Benachrichtigungen und Aenderungsverlauf.
+

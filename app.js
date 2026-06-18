@@ -1,10 +1,12 @@
-let state = loadInitialData();
+﻿let state = loadInitialData();
 let currentUser = null;
 let currentView = "home";
 let selectedRoomId = null;
 let selectedWeekStart = getMonday(new Date());
 let supabaseClient = null;
 let activeAdminSection = null;
+let selectedMaterialWeekStart = getMonday(new Date());
+let selectedTimetableTeacherId = null;
 
 const els = {};
 
@@ -22,12 +24,12 @@ function bindElements() {
     "room-meta", "room-tags", "week-label", "week-rule", "week-date-picker", "today-week-button", "prev-week",
     "next-week", "room-calendar", "back-to-rooms", "my-reservations-button",
     "general-calendar-view", "calendar-month", "calendar-event-button", "general-calendar-grid",
-    "material-view", "material-grid", "material-admin-button",
-    "teacher-timetables-view", "teacher-timetable-select", "teacher-timetable-actions", "teacher-timetable-file", "teacher-timetable-save", "teacher-timetable-preview",
+    "material-view", "material-grid", "material-admin-button", "material-ticket-button", "material-week-label", "material-prev-week", "material-next-week", "material-today-button",
+    "teacher-timetables-view", "teacher-timetable-grid", "teacher-timetable-select", "teacher-timetable-actions", "teacher-timetable-file", "teacher-timetable-save", "teacher-timetable-preview",
     "my-reservations-view", "my-reservations-list", "admin-button",
     "admin-view", "toast", "modal", "modal-title", "modal-body",
     "modal-close", "page-subtitle", "schedule-actions", "edit-schedule-button",
-    "recurring-release-button", "room-qr-link", "reset-data-button",
+    "recurring-release-button", "schedule-import-button", "room-qr-link", "reset-data-button",
     "admin-home", "admin-detail", "admin-back-button", "admin-teachers-panel", "admin-rooms-panel", "admin-holidays-panel", "admin-blocks-panel", "admin-import-panel", "admin-settings-panel",
     "teacher-form", "teacher-list", "teacher-role-select", "room-form", "admin-room-list",
     "holiday-form", "holiday-list", "room-responsible-select"
@@ -58,6 +60,10 @@ function bindEvents() {
   els.calendarMonth.addEventListener("change", renderGeneralCalendar);
   els.calendarEventButton.addEventListener("click", openCalendarEventForm);
   els.materialAdminButton.addEventListener("click", openMaterialAdmin);
+  els.materialTicketButton.addEventListener("click", openMaterialTicketForm);
+  els.materialPrevWeek.addEventListener("click", () => { selectedMaterialWeekStart = addDays(selectedMaterialWeekStart, -7); renderMaterials(); });
+  els.materialNextWeek.addEventListener("click", () => { selectedMaterialWeekStart = addDays(selectedMaterialWeekStart, 7); renderMaterials(); });
+  els.materialTodayButton.addEventListener("click", () => { selectedMaterialWeekStart = getMonday(new Date()); renderMaterials(); });
   els.teacherTimetableSelect.addEventListener("change", () => renderTeacherTimetable());
   els.teacherTimetableSave.addEventListener("click", saveTeacherTimetablePreview);
   els.prevWeek.addEventListener("click", () => changeWeek(-7));
@@ -76,6 +82,7 @@ function bindEvents() {
   });
   els.editScheduleButton.addEventListener("click", openScheduleEditor);
   els.recurringReleaseButton.addEventListener("click", openRecurringReleaseForm);
+  els.scheduleImportButton.addEventListener("click", openRoomScheduleImport);
   els.roomQrLink.addEventListener("click", copyRoomLink);
   els.resetDataButton.addEventListener("click", resetDataFromAdmin);
   els.teacherForm.addEventListener("submit", handleCreateTeacher);
@@ -142,7 +149,8 @@ async function loadRemoteState() {
     "calendar_events",
     "materials",
     "material_reservations",
-    "teacher_timetables"
+    "teacher_timetables",
+    "material_tickets"
   ];
 
   const results = await Promise.all(requiredTables.map((table) => client.from(table).select("*")));
@@ -175,7 +183,8 @@ async function loadRemoteState() {
     calendarEvents: byTable.calendar_events.map(mapCalendarEventFromDb),
     materials: byTable.materials.length ? byTable.materials.map(mapMaterialFromDb) : fallback.materials,
     materialReservations: byTable.material_reservations.map(mapMaterialReservationFromDb),
-    teacherTimetables: byTable.teacher_timetables.map(mapTeacherTimetableFromDb)
+    teacherTimetables: byTable.teacher_timetables.map(mapTeacherTimetableFromDb),
+    materialTickets: byTable.material_tickets.map(mapMaterialTicketFromDb)
   };
   if (!state.roomTeachers.length) {
     state.roomTeachers = state.rooms
@@ -311,6 +320,7 @@ function mapMaterialFromDb(row) {
     name: row.name,
     code: row.code || "",
     iconLabel: row.icon_label || "",
+    stock: Number(row.stock ?? 1),
     active: row.active
   };
 }
@@ -323,6 +333,9 @@ function mapMaterialReservationFromDb(row) {
     date: row.date,
     slotId: row.slot_id,
     note: row.note || "",
+    quantity: Number(row.quantity ?? 1),
+    borrowerName: row.borrower_name || "",
+    className: row.class_name || "",
     returned: row.returned
   };
 }
@@ -336,6 +349,21 @@ function mapTeacherTimetableFromDb(row) {
     fileUrl: row.file_url,
     uploadedBy: row.uploaded_by,
     uploadedAt: row.uploaded_at
+  };
+}
+
+function mapMaterialTicketFromDb(row) {
+  return {
+    id: row.id,
+    category: row.category,
+    materialId: row.material_id || "",
+    senderName: row.sender_name || "",
+    className: row.class_name || "",
+    message: row.message || "",
+    adminReply: row.admin_reply || "",
+    status: row.status || "open",
+    createdBy: row.created_by || "",
+    createdAt: row.created_at
   };
 }
 
@@ -462,7 +490,7 @@ async function handleLogin(event) {
 function startApp() {
   els.loginScreen.classList.add("hidden");
   els.app.classList.remove("hidden");
-  els.currentUserPill.textContent = `${currentUser.name} · ${getRoleLabel(currentUser)}`;
+  els.currentUserPill.textContent = `${currentUser.name} Â· ${getRoleLabel(currentUser)}`;
   els.storageModePill.textContent = getStorageModeLabel();
   els.adminButton.classList.toggle("hidden", !isAdmin());
 
@@ -581,7 +609,7 @@ function showRoomDetail() {
   const teachers = getRoomTeachers(room.id);
   els.pageSubtitle.textContent = room.name;
   els.roomTitle.textContent = room.name;
-  els.roomMeta.textContent = `${room.type === "fixed_schedule" ? "Klassensaal mit fixem Stundenplan" : "Frei buchbarer Raum"} · ${room.roomNumber || "Ohne Nummer"}`;
+  els.roomMeta.textContent = `${room.type === "fixed_schedule" ? "Klassensaal mit fixem Stundenplan" : "Frei buchbarer Raum"} Â· ${room.roomNumber || "Ohne Nummer"}`;
   els.roomTags.innerHTML = [
     teachers.length ? `Zugewiesen: ${teachers.map((teacher) => teacher.name).join(", ")}` : "Keine Zuweisung",
     room.active ? "Aktiv" : "Inaktiv"
@@ -682,7 +710,7 @@ function openCellDialog({ room, date, day, slotId }) {
     html += `<button class="secondary-button full-width" data-action="release-slot">Diese Stunde einmalig freigeben</button>`;
   }
 
-  openModal(`${room.name} · ${slot.label}`, html);
+  openModal(`${room.name} Â· ${slot.label}`, html);
 
   const form = document.getElementById("reservation-form");
   if (form) {
@@ -950,6 +978,108 @@ function openScheduleEditor() {
   });
 }
 
+function openRoomScheduleImport() {
+  const room = findRoom(selectedRoomId);
+  if (!canEditRoomSchedule(room)) return;
+  openModal("Stundenplan importieren", `
+    <form id="room-schedule-import-form" class="form-stack">
+      <label>PDF-Datei<input name="pdf" type="file" accept="application/pdf"></label>
+      <p class="hint">PDF wird als Grundlage ausgewaehlt. Die Importzeilen kannst du pruefen und korrigieren, bevor sie uebernommen werden.</p>
+      <label>Importzeilen<textarea name="lines" rows="8" placeholder="Montag 08:00-08:55 Deutsch; Frau Rossi\nDienstag 08:00-08:50 Rechnen; Herr Weber"></textarea></label>
+      <button class="primary-button" type="submit">Vorschau erstellen</button>
+    </form>
+  `);
+  document.getElementById("room-schedule-import-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const rows = parseScheduleImportLines(String(data.get("lines") || ""));
+    if (!rows.length) {
+      showToast("Bitte Importzeilen einfuegen oder korrigieren.", "error");
+      return;
+    }
+    openRoomScheduleImportPreview(room, rows);
+  });
+}
+
+function parseScheduleImportLines(text) {
+  return text.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^(Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag)\s+(\d{2}:\d{2})(?:\s*-\s*\d{2}:\d{2})?\s+(.+?)(?:\s*[;|]\s*(.+))?$/i);
+      if (!match) return null;
+      const day = DAYS.find((item) => item.toLowerCase() === match[1].toLowerCase());
+      const start = match[2];
+      const slot = getSlotsForDay(day).find((item) => item.kind === "lesson" && item.start === start);
+      if (!slot) return null;
+      return {
+        day,
+        slotId: slot.id,
+        subject: match[3].trim(),
+        teacherName: String(match[4] || "").trim()
+      };
+    })
+    .filter(Boolean);
+}
+
+function openRoomScheduleImportPreview(room, rows) {
+  openModal("Import pruefen", `
+    <form id="room-schedule-import-preview" class="form-stack schedule-editor">
+      ${rows.map((row, index) => {
+        const slot = getSlotForDay(row.day, row.slotId);
+        return `
+          <div class="schedule-edit-row">
+            <label>Tag<select name="${index}|day">${DAYS.map((day) => `<option value="${day}" ${day === row.day ? "selected" : ""}>${day}</option>`).join("")}</select></label>
+            <label>Stunde<select name="${index}|slotId">${getSlotsForDay(row.day).filter((slotItem) => slotItem.kind === "lesson").map((slotItem) => `<option value="${slotItem.id}" ${slotItem.id === row.slotId ? "selected" : ""}>${slotItem.label} (${slotItem.start}-${slotItem.end})</option>`).join("")}</select></label>
+            <label>Fach<input name="${index}|subject" value="${escapeHtml(row.subject)}" required></label>
+            <label>Lehrperson<select name="${index}|teacherId"><option value="">Keine Zuordnung</option>${teacherOptions(findTeacherByName(row.teacherName)?.id || "")}</select></label>
+          </div>
+        `;
+      }).join("")}
+      <button class="primary-button" type="submit">In Raumstundenplan uebernehmen</button>
+    </form>
+  `);
+  document.getElementById("room-schedule-import-preview").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    for (let index = 0; index < rows.length; index += 1) {
+      const day = String(data.get(`${index}|day`));
+      const slotId = String(data.get(`${index}|slotId`));
+      const subject = String(data.get(`${index}|subject`) || "").trim();
+      const teacherId = String(data.get(`${index}|teacherId`) || "");
+      if (!subject) continue;
+      const remote = await remoteUpsert("fixed_schedule", {
+        room_id: room.id,
+        day,
+        slot_id: slotId,
+        subject,
+        teacher_id: teacherId || null,
+        status: "fix_belegt"
+      }, "room_id,day,slot_id");
+      if (!remote.ok) {
+        showToast(remote.message, "error");
+        return;
+      }
+      const existing = state.fixedSchedule.find((item) => item.roomId === room.id && item.day === day && item.slotId === slotId);
+      if (existing) {
+        existing.subject = subject;
+        existing.teacherId = teacherId;
+      } else {
+        state.fixedSchedule.push({ roomId: room.id, day, slotId, subject, teacherId, status: "fix_belegt" });
+      }
+    }
+    saveData();
+    closeModal();
+    renderCalendar();
+    showToast("Der Stundenplan wurde importiert.", "success");
+  });
+}
+
+function findTeacherByName(name) {
+  const needle = String(name || "").trim().toLowerCase();
+  if (!needle) return null;
+  return state.teachers.find((teacher) => teacher.name.toLowerCase() === needle || teacher.name.toLowerCase().includes(needle));
+}
 function openRecurringReleaseForm() {
   const room = findRoom(selectedRoomId);
   if (!canEditRoomSchedule(room)) return;
@@ -984,7 +1114,7 @@ function openRecurringReleaseForm() {
       ${state.recurringReleases.filter((release) => release.roomId === room.id).map((release) => `
         <div class="compact-item">
           <strong>${release.day}, ${findSlotRow(release.slotId).label}</strong>
-          <span>${escapeHtml(release.reason)} · ${formatUiDate(parseDate(release.validFrom))}-${formatUiDate(parseDate(release.validUntil))}</span>
+          <span>${escapeHtml(release.reason)} Â· ${formatUiDate(parseDate(release.validFrom))}-${formatUiDate(parseDate(release.validUntil))}</span>
           <button class="text-danger" data-delete-recurring="${release.id}" type="button">Loeschen</button>
         </div>
       `).join("") || `<p class="muted">Noch keine dauerhaften Freigaben.</p>`}
@@ -1055,7 +1185,7 @@ function renderMyReservations() {
         <div>
           <strong>${escapeHtml(room?.name || "-")}</strong>
           <span>${escapeHtml(reservation.day)}, ${formatUiDate(parseDate(reservation.date))}, ${slot.start}-${slot.end}</span>
-          <span>${escapeHtml(teacher?.name || "-")} · ${escapeHtml(reservation.secondPerson || "keine zweite Person")}</span>
+          <span>${escapeHtml(teacher?.name || "-")} Â· ${escapeHtml(reservation.secondPerson || "keine zweite Person")}</span>
           <span>${escapeHtml(reservation.note || "")}</span>
         </div>
         <button class="danger-button" data-delete="${reservation.id}" type="button">Loeschen</button>
@@ -1147,43 +1277,67 @@ function openCalendarEventForm() {
 
 function renderMaterials() {
   els.materialAdminButton.classList.toggle("hidden", !isAdmin());
-  const materials = state.materials.filter((material) => material.active !== false);
-  els.materialGrid.innerHTML = materials.map((material) => {
-    const upcoming = state.materialReservations
-      .filter((reservation) => reservation.materialId === material.id && reservation.returned !== true)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 3)
-      .map((reservation) => {
-        const teacher = findTeacher(reservation.teacherId);
-        const slot = getSlotForDay(getDayName(parseDate(reservation.date)), reservation.slotId);
-        return `${formatUiDate(parseDate(reservation.date))}, ${slot.start}-${slot.end}: ${teacher?.name || "-"}`;
-      });
-    return `
-      <button class="room-card material-card" type="button" data-material-id="${material.id}">
-        <span class="room-icon">${escapeHtml(material.iconLabel || material.code || "MA")}</span>
-        <span class="room-card-title">${escapeHtml(material.name)}</span>
-        <span class="room-card-type">${escapeHtml(material.code || "Material")}</span>
-        <span class="room-card-meta">${upcoming.length ? escapeHtml(upcoming.join(" | ")) : "Noch keine Ausleihe eingetragen"}</span>
-        <span class="availability-pill">Ausleihen</span>
-      </button>
-    `;
-  }).join("") || `<p class="muted">Keine Materialien vorhanden.</p>`;
-
-  els.materialGrid.querySelectorAll("[data-material-id]").forEach((card) => {
-    card.addEventListener("click", () => openMaterialReservation(card.dataset.materialId));
+  els.materialWeekLabel.textContent = `${formatUiDate(selectedMaterialWeekStart)} - ${formatUiDate(addDays(selectedMaterialWeekStart, 6))}`;
+  const dates = getWeekDates(selectedMaterialWeekStart);
+  const slots = bookableSlotRows();
+  els.materialGrid.className = "calendar-wrap";
+  els.materialGrid.innerHTML = `
+    <table class="calendar material-calendar">
+      <thead>
+        <tr>
+          <th class="slot-header">Zeit</th>
+          ${DAYS.map((day, index) => `<th>${day}<span>${formatUiDate(dates[index])}</span></th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${slots.map((slotRow) => `
+          <tr>
+            <th class="slot-header">${escapeHtml(slotRow.label)}</th>
+            ${DAYS.map((day, dayIndex) => {
+              const date = formatDate(dates[dayIndex]);
+              const slot = getSlotForDay(day, slotRow.id);
+              const reservations = state.materialReservations.filter((item) => item.date === date && item.slotId === slotRow.id && item.returned !== true);
+              return `
+                <td>
+                  <button class="calendar-cell status-free" type="button" data-material-date="${date}" data-material-day="${day}" data-material-slot="${slotRow.id}">
+                    <span class="cell-time">${slot.start}-${slot.end}</span>
+                    ${reservations.length ? reservations.map((reservation) => renderMaterialReservationMini(reservation)).join("") : `<span class="cell-note">Frei</span>`}
+                    <span class="cell-action">Material eintragen</span>
+                  </button>
+                </td>
+              `;
+            }).join("")}
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+  els.materialGrid.querySelectorAll("[data-material-date]").forEach((button) => {
+    button.addEventListener("click", () => openMaterialReservation(button.dataset.materialDate, button.dataset.materialDay, button.dataset.materialSlot));
   });
 }
 
-function openMaterialReservation(materialId) {
-  const material = state.materials.find((item) => item.id === materialId);
-  if (!material) return;
-  openModal("Material ausleihen", `
+function renderMaterialReservationMini(reservation) {
+  const material = state.materials.find((item) => item.id === reservation.materialId);
+  const owner = reservation.borrowerName || findTeacher(reservation.teacherId)?.name || "-";
+  return `<span class="cell-main">${escapeHtml(material?.name || "Material")} x ${reservation.quantity || 1}</span><span class="cell-note">${escapeHtml(owner)}${reservation.className ? ` - ${escapeHtml(reservation.className)}` : ""}</span>`;
+}
+
+function openMaterialReservation(date, day, slotId) {
+  const slot = getSlotForDay(day, slotId);
+  const materialOptions = state.materials
+    .filter((material) => material.active !== false)
+    .map((material) => {
+      const available = getAvailableMaterialCount(material.id, date, slotId);
+      return `<option value="${material.id}" data-available="${available}">${escapeHtml(material.name)} (${available}/${material.stock || 1} frei)</option>`;
+    }).join("");
+  openModal("Material eintragen", `
     <form id="material-reservation-form" class="form-stack">
-      <p class="muted">${escapeHtml(material.name)}</p>
-      <label>Datum<input name="date" type="date" value="${formatDate(new Date())}" required></label>
-      <label>Zeit<select name="slotId">
-        ${bookableSlotRows().map((slot) => `<option value="${slot.id}">${escapeHtml(slot.label)}</option>`).join("")}
-      </select></label>
+      <p class="muted">${escapeHtml(day)}, ${formatUiDate(parseDate(date))}, ${slot.start}-${slot.end}</p>
+      <label>Material<select name="materialId" required>${materialOptions}</select></label>
+      <label>Anzahl<input name="quantity" type="number" min="1" value="1" required></label>
+      <label>Name<input name="borrowerName" value="${escapeHtml(currentUser.name)}" required></label>
+      <label>Klasse<input name="className" placeholder="z. B. P3" required></label>
       <label>Notiz<textarea name="note" rows="3" placeholder="Optional"></textarea></label>
       <button class="primary-button" type="submit">Ausleihe speichern</button>
     </form>
@@ -1192,13 +1346,15 @@ function openMaterialReservation(materialId) {
   document.getElementById("material-reservation-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(event.target);
-    const date = String(data.get("date"));
-    const slotId = String(data.get("slotId"));
-    const conflict = state.materialReservations.some((reservation) =>
-      reservation.materialId === materialId && reservation.date === date && reservation.slotId === slotId && reservation.returned !== true
-    );
-    if (conflict) {
-      showToast("Dieses Material ist zu dieser Zeit schon ausgeliehen.", "error");
+    const materialId = String(data.get("materialId"));
+    const quantity = Number(data.get("quantity"));
+    const available = getAvailableMaterialCount(materialId, date, slotId);
+    if (!Number.isFinite(quantity) || quantity < 1) {
+      showToast("Bitte eine gueltige Anzahl eingeben.", "error");
+      return;
+    }
+    if (quantity > available) {
+      showToast(`Es sind nur noch ${available} Stueck verfuegbar.`, "error");
       return;
     }
     const reservation = {
@@ -1207,6 +1363,9 @@ function openMaterialReservation(materialId) {
       teacherId: currentUser.id,
       date,
       slotId,
+      quantity,
+      borrowerName: String(data.get("borrowerName") || "").trim(),
+      className: String(data.get("className") || "").trim(),
       note: String(data.get("note") || "").trim(),
       returned: false
     };
@@ -1216,6 +1375,9 @@ function openMaterialReservation(materialId) {
       teacher_id: reservation.teacherId,
       date: reservation.date,
       slot_id: reservation.slotId,
+      quantity: reservation.quantity,
+      borrower_name: reservation.borrowerName,
+      class_name: reservation.className,
       note: reservation.note,
       returned: false
     });
@@ -1227,18 +1389,46 @@ function openMaterialReservation(materialId) {
     saveData();
     closeModal();
     renderMaterials();
-    showToast("Das Material wurde reserviert.", "success");
+    showToast("Das Material wurde eingetragen.", "success");
   });
 }
 
+function getAvailableMaterialCount(materialId, date, slotId) {
+  const material = state.materials.find((item) => item.id === materialId);
+  const stock = Number(material?.stock || 1);
+  const used = state.materialReservations
+    .filter((reservation) => reservation.materialId === materialId && reservation.date === date && reservation.slotId === slotId && reservation.returned !== true)
+    .reduce((sum, reservation) => sum + Number(reservation.quantity || 1), 0);
+  return Math.max(0, stock - used);
+}
+
 function openMaterialAdmin() {
+  const tickets = renderMaterialTicketsAdmin();
+  const list = state.materials.map((material) => `
+    <div class="compact-item">
+      <div>
+        <strong>${escapeHtml(material.name)}</strong>
+        <span>${escapeHtml(material.code || "-")} - Bestand: ${material.stock || 1} - ${material.active === false ? "inaktiv" : "aktiv"}</span>
+      </div>
+      <div class="compact-actions">
+        <button class="secondary-button" data-edit-material="${material.id}" type="button">Bearbeiten</button>
+        <button class="secondary-button" data-toggle-material="${material.id}" type="button">${material.active === false ? "Aktivieren" : "Deaktivieren"}</button>
+        <button class="text-danger" data-delete-material="${material.id}" type="button">Loeschen</button>
+      </div>
+    </div>
+  `).join("");
   openModal("Material verwalten", `
-    <form id="material-admin-form" class="form-stack">
-      <label>Name<input name="name" placeholder="z. B. Dokumentenkamera" required></label>
-      <label>Code<input name="code" placeholder="DOKU"></label>
-      <label>Initialen<input name="iconLabel" maxlength="4" placeholder="DK"></label>
+    <form id="material-admin-form" class="form-grid">
+      <input name="name" placeholder="Name" required>
+      <input name="code" placeholder="Code">
+      <input name="iconLabel" maxlength="4" placeholder="Initialen">
+      <input name="stock" type="number" min="1" value="1" placeholder="Bestand" required>
       <button class="primary-button" type="submit">Material anlegen</button>
     </form>
+    <h3>Material</h3>
+    <div class="compact-list">${list || `<p class="muted">Keine Materialien vorhanden.</p>`}</div>
+    <h3>Tickets</h3>
+    <div class="compact-list">${tickets}</div>
   `);
 
   document.getElementById("material-admin-form").addEventListener("submit", async (event) => {
@@ -1249,6 +1439,7 @@ function openMaterialAdmin() {
       name: String(data.get("name")).trim(),
       code: String(data.get("code") || "").trim().toUpperCase(),
       iconLabel: String(data.get("iconLabel") || "").trim().slice(0, 4).toUpperCase(),
+      stock: Number(data.get("stock")) || 1,
       active: true
     };
     const remote = await remoteInsert("materials", {
@@ -1256,6 +1447,7 @@ function openMaterialAdmin() {
       name: material.name,
       code: material.code,
       icon_label: material.iconLabel,
+      stock: material.stock,
       active: true
     });
     if (!remote.ok) {
@@ -1268,27 +1460,225 @@ function openMaterialAdmin() {
     renderMaterials();
     showToast("Das Material wurde angelegt.", "success");
   });
+
+  els.modalBody.querySelectorAll("[data-edit-material]").forEach((button) => button.addEventListener("click", () => openMaterialEditForm(button.dataset.editMaterial)));
+  els.modalBody.querySelectorAll("[data-toggle-material]").forEach((button) => button.addEventListener("click", () => toggleMaterial(button.dataset.toggleMaterial)));
+  els.modalBody.querySelectorAll("[data-delete-material]").forEach((button) => button.addEventListener("click", () => deleteMaterial(button.dataset.deleteMaterial)));
+  els.modalBody.querySelectorAll("[data-reply-ticket]").forEach((button) => button.addEventListener("click", () => openTicketReplyForm(button.dataset.replyTicket)));
+  els.modalBody.querySelectorAll("[data-done-ticket]").forEach((button) => button.addEventListener("click", () => markMaterialTicketDone(button.dataset.doneTicket)));
 }
 
+function renderMaterialTicketsAdmin() {
+  const tickets = (state.materialTickets || []).slice().sort((a, b) => String(a.status).localeCompare(String(b.status)) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  return tickets.map((ticket) => {
+    const material = state.materials.find((item) => item.id === ticket.materialId);
+    return `
+      <div class="compact-item ${ticket.status === "done" ? "is-muted" : ""}">
+        <div>
+          <strong>${escapeHtml(ticket.senderName)} - ${ticket.status === "done" ? "bearbeitet" : "offen"}</strong>
+          <span>${escapeHtml(ticket.category)}${material ? ` - ${escapeHtml(material.name)}` : ""} - ${escapeHtml(ticket.className)}</span>
+          <span>${escapeHtml(ticket.message)}</span>
+          ${ticket.adminReply ? `<span>Antwort: ${escapeHtml(ticket.adminReply)}</span>` : ""}
+        </div>
+        <div class="compact-actions">
+          <button class="secondary-button" data-reply-ticket="${ticket.id}" type="button">Antworten</button>
+          <button class="secondary-button" data-done-ticket="${ticket.id}" type="button">Abhaken</button>
+        </div>
+      </div>
+    `;
+  }).join("") || `<p class="muted">Keine Tickets vorhanden.</p>`;
+}
+
+function openMaterialEditForm(materialId) {
+  const material = state.materials.find((item) => item.id === materialId);
+  if (!material) return;
+  openModal("Material bearbeiten", `
+    <form id="material-edit-form" class="form-stack">
+      <label>Name<input name="name" value="${escapeHtml(material.name)}" required></label>
+      <label>Code<input name="code" value="${escapeHtml(material.code || "")}"></label>
+      <label>Initialen<input name="iconLabel" maxlength="4" value="${escapeHtml(material.iconLabel || "")}"></label>
+      <label>Bestand<input name="stock" type="number" min="1" value="${material.stock || 1}" required></label>
+      <button class="primary-button" type="submit">Speichern</button>
+    </form>
+  `);
+  document.getElementById("material-edit-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const values = {
+      name: String(data.get("name")).trim(),
+      code: String(data.get("code") || "").trim().toUpperCase(),
+      iconLabel: String(data.get("iconLabel") || "").trim().slice(0, 4).toUpperCase(),
+      stock: Number(data.get("stock")) || 1
+    };
+    const remote = await remoteUpdate("materials", {
+      name: values.name,
+      code: values.code,
+      icon_label: values.iconLabel,
+      stock: values.stock
+    }, { id: material.id });
+    if (!remote.ok) { showToast(remote.message, "error"); return; }
+    Object.assign(material, values);
+    saveData();
+    closeModal();
+    renderMaterials();
+    showToast("Das Material wurde gespeichert.", "success");
+  });
+}
+
+async function toggleMaterial(materialId) {
+  const material = state.materials.find((item) => item.id === materialId);
+  if (!material) return;
+  const remote = await remoteUpdate("materials", { active: material.active === false }, { id: material.id });
+  if (!remote.ok) { showToast(remote.message, "error"); return; }
+  material.active = material.active === false;
+  saveData();
+  closeModal();
+  renderMaterials();
+  showToast("Der Materialstatus wurde geaendert.", "success");
+}
+
+async function deleteMaterial(materialId) {
+  const material = state.materials.find((item) => item.id === materialId);
+  if (!material) return;
+  if (!window.confirm(`${material.name} wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.`)) return;
+  const remote = await remoteDelete("materials", { id: material.id });
+  if (!remote.ok) { showToast(remote.message, "error"); return; }
+  state.materials = state.materials.filter((item) => item.id !== material.id);
+  state.materialReservations = state.materialReservations.filter((item) => item.materialId !== material.id);
+  saveData();
+  closeModal();
+  renderMaterials();
+  showToast("Das Material wurde geloescht.", "success");
+}
+
+function openMaterialTicketForm() {
+  openModal("Ticket an Admin", `
+    <form id="material-ticket-form" class="form-stack">
+      <label>Kategorie<select name="category"><option value="damage">Beschaedigtes Material</option><option value="missing">Material fehlt</option><option value="other">Sonstiges</option></select></label>
+      <label>Material<select name="materialId"><option value="">Nicht zugeordnet</option>${state.materials.map((material) => `<option value="${material.id}">${escapeHtml(material.name)}</option>`).join("")}</select></label>
+      <label>Name<input name="senderName" value="${escapeHtml(currentUser.name)}" required></label>
+      <label>Klasse/Rolle<input name="className" placeholder="z. B. P3 oder Lehrperson" required></label>
+      <label>Nachricht<textarea name="message" rows="4" required></textarea></label>
+      <button class="primary-button" type="submit">Ticket senden</button>
+    </form>
+  `);
+  document.getElementById("material-ticket-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const ticket = {
+      id: uniqueId("ticket"),
+      category: String(data.get("category")),
+      materialId: String(data.get("materialId") || ""),
+      senderName: String(data.get("senderName") || "").trim(),
+      className: String(data.get("className") || "").trim(),
+      message: String(data.get("message") || "").trim(),
+      adminReply: "",
+      status: "open",
+      createdBy: currentUser.id,
+      createdAt: new Date().toISOString()
+    };
+    const remote = await remoteInsert("material_tickets", {
+      id: ticket.id,
+      category: ticket.category,
+      material_id: ticket.materialId || null,
+      sender_name: ticket.senderName,
+      class_name: ticket.className,
+      message: ticket.message,
+      admin_reply: "",
+      status: "open",
+      created_by: ticket.createdBy
+    });
+    if (!remote.ok) { showToast(remote.message, "error"); return; }
+    state.materialTickets.push(ticket);
+    saveData();
+    closeModal();
+    showToast("Das Ticket wurde gesendet.", "success");
+  });
+}
+
+function openTicketReplyForm(ticketId) {
+  const ticket = state.materialTickets.find((item) => item.id === ticketId);
+  if (!ticket) return;
+  openModal("Ticket beantworten", `
+    <form id="ticket-reply-form" class="form-stack">
+      <p class="muted">${escapeHtml(ticket.message)}</p>
+      <label>Antwort<textarea name="reply" rows="4" required>${escapeHtml(ticket.adminReply || "")}</textarea></label>
+      <label class="check-label"><input name="done" type="checkbox" ${ticket.status === "done" ? "checked" : ""}> Als bearbeitet markieren</label>
+      <button class="primary-button" type="submit">Antwort speichern</button>
+    </form>
+  `);
+  document.getElementById("ticket-reply-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const reply = String(data.get("reply") || "").trim();
+    const status = data.get("done") ? "done" : "open";
+    const remote = await remoteUpdate("material_tickets", { admin_reply: reply, status }, { id: ticket.id });
+    if (!remote.ok) { showToast(remote.message, "error"); return; }
+    ticket.adminReply = reply;
+    ticket.status = status;
+    saveData();
+    closeModal();
+    openMaterialAdmin();
+    showToast("Die Antwort wurde gespeichert.", "success");
+  });
+}
+
+async function markMaterialTicketDone(ticketId) {
+  const ticket = state.materialTickets.find((item) => item.id === ticketId);
+  if (!ticket) return;
+  const remote = await remoteUpdate("material_tickets", { status: "done" }, { id: ticket.id });
+  if (!remote.ok) { showToast(remote.message, "error"); return; }
+  ticket.status = "done";
+  saveData();
+  closeModal();
+  openMaterialAdmin();
+  showToast("Das Ticket wurde abgehakt.", "success");
+}
 function renderTeacherTimetables() {
-  els.teacherTimetableSelect.innerHTML = state.teachers
-    .filter((teacher) => teacher.active !== false)
+  const teachers = state.teachers.filter((teacher) => teacher.active !== false);
+  els.teacherTimetableSelect.innerHTML = teachers
     .map((teacher) => `<option value="${teacher.id}">${escapeHtml(teacher.name)} (${getRoleLabel(teacher)})</option>`)
     .join("");
-  if (!els.teacherTimetableSelect.value && state.teachers.length) {
-    els.teacherTimetableSelect.value = currentUser.id;
-  }
-  els.teacherTimetableActions.classList.toggle("hidden", !isAdmin());
-  renderTeacherTimetable();
+  els.teacherTimetableActions.classList.add("hidden");
+  els.teacherTimetableGrid.innerHTML = `
+    ${teachers.map((teacher) => {
+      const timetable = getLatestTeacherTimetable(teacher.id);
+      return `
+        <button class="module-card" type="button" data-open-teacher-timetable="${teacher.id}">
+          <span class="module-icon">${escapeHtml(getInitials(teacher.name))}</span>
+          <strong>${escapeHtml(teacher.name)}</strong>
+          <span>${timetable ? escapeHtml(timetable.fileName || "PDF vorhanden") : "Noch kein Stundenplan hinterlegt"}</span>
+        </button>
+      `;
+    }).join("")}
+    ${isAdmin() ? `
+      <button class="module-card upload-card" type="button" data-open-timetable-upload="true">
+        <span class="module-icon">UP</span>
+        <strong>Stundenplan hochladen</strong>
+        <span>PDF auswaehlen und einer Lehrperson zuordnen.</span>
+      </button>
+    ` : ""}
+  `;
+  els.teacherTimetableGrid.querySelectorAll("[data-open-teacher-timetable]").forEach((button) => {
+    button.addEventListener("click", () => renderTeacherTimetable(button.dataset.openTeacherTimetable));
+  });
+  els.teacherTimetableGrid.querySelector("[data-open-timetable-upload]")?.addEventListener("click", openTeacherTimetableUpload);
+  if (!selectedTimetableTeacherId && teachers.length) selectedTimetableTeacherId = teachers[0].id;
+  renderTeacherTimetable(selectedTimetableTeacherId);
 }
 
-async function renderTeacherTimetable() {
-  const teacherId = els.teacherTimetableSelect.value || currentUser.id;
-  const timetable = state.teacherTimetables
+function getLatestTeacherTimetable(teacherId) {
+  return state.teacherTimetables
     .filter((item) => item.teacherId === teacherId)
     .sort((a, b) => String(b.uploadedAt || "").localeCompare(String(a.uploadedAt || "")))[0];
+}
+
+async function renderTeacherTimetable(teacherId = selectedTimetableTeacherId || currentUser.id) {
+  selectedTimetableTeacherId = teacherId;
+  const teacher = findTeacher(teacherId);
+  const timetable = getLatestTeacherTimetable(teacherId);
   if (!timetable) {
-    els.teacherTimetablePreview.innerHTML = `<p class="muted">Noch kein PDF-Stundenplan fuer diese Lehrperson hinterlegt.</p>`;
+    els.teacherTimetablePreview.innerHTML = `<p class="muted">Fuer ${escapeHtml(teacher?.name || "diese Lehrperson")} ist noch kein PDF-Stundenplan hinterlegt.</p>`;
     return;
   }
   const pdfUrl = await getTeacherTimetableUrl(timetable);
@@ -1298,13 +1688,36 @@ async function renderTeacherTimetable() {
   }
   els.teacherTimetablePreview.innerHTML = `
     <div class="pdf-toolbar">
-      <strong>${escapeHtml(timetable.fileName || "Stundenplan.pdf")}</strong>
-      <span>${escapeHtml(timetable.schoolYear || "aktuelles Schuljahr")}</span>
+      <div><strong>${escapeHtml(teacher?.name || "Lehrperson")}</strong><span>${escapeHtml(timetable.fileName || "Stundenplan.pdf")}</span></div>
+      <div class="compact-actions">
+        <span>${escapeHtml(timetable.schoolYear || "aktuelles Schuljahr")}</span>
+        ${isAdmin() ? `<button class="text-danger" data-delete-timetable="${timetable.id}" type="button">Loeschen</button>` : ""}
+      </div>
     </div>
     <object data="${escapeHtml(pdfUrl)}" type="application/pdf" class="pdf-frame">
       <a href="${escapeHtml(pdfUrl)}" target="_blank" rel="noreferrer">PDF oeffnen</a>
     </object>
   `;
+  els.teacherTimetablePreview.querySelector("[data-delete-timetable]")?.addEventListener("click", () => deleteTeacherTimetable(timetable.id));
+}
+
+function openTeacherTimetableUpload() {
+  openModal("Stundenplan hochladen", `
+    <form id="teacher-timetable-upload-form" class="form-stack">
+      <label>Lehrperson<select name="teacherId">${state.teachers.filter((teacher) => teacher.active !== false).map((teacher) => `<option value="${teacher.id}" ${teacher.id === selectedTimetableTeacherId ? "selected" : ""}>${escapeHtml(teacher.name)}</option>`).join("")}</select></label>
+      <label>PDF-Datei<input name="file" type="file" accept="application/pdf" required></label>
+      <button class="primary-button" type="submit">PDF hochladen</button>
+    </form>
+  `);
+  document.getElementById("teacher-timetable-upload-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.target);
+    els.teacherTimetableSelect.value = form.get("teacherId");
+    els.teacherTimetableFile.files = event.target.elements.file.files;
+    await saveTeacherTimetablePreview(String(form.get("teacherId")), event.target.elements.file.files?.[0]);
+    closeModal();
+    renderTeacherTimetables();
+  });
 }
 
 async function getTeacherTimetableUrl(timetable) {
@@ -1322,9 +1735,9 @@ async function getTeacherTimetableUrl(timetable) {
   return data.signedUrl;
 }
 
-async function saveTeacherTimetablePreview() {
-  const file = els.teacherTimetableFile.files?.[0];
-  const teacherId = els.teacherTimetableSelect.value;
+async function saveTeacherTimetablePreview(forTeacherId, selectedFile) {
+  const file = selectedFile || els.teacherTimetableFile.files?.[0];
+  const teacherId = forTeacherId || els.teacherTimetableSelect.value;
   if (!file || !teacherId) {
     showToast("Bitte zuerst eine Lehrperson und eine PDF-Datei waehlen.", "error");
     return;
@@ -1367,8 +1780,7 @@ async function saveTeacherTimetablePreview() {
       ...record,
       uploaded_at: new Date().toISOString()
     }));
-    els.teacherTimetableFile.value = "";
-    await renderTeacherTimetable();
+    selectedTimetableTeacherId = teacherId;
     showToast("Das PDF wurde hochgeladen.", "success");
     return;
   }
@@ -1384,10 +1796,28 @@ async function saveTeacherTimetablePreview() {
     uploadedBy: currentUser.id,
     uploadedAt: new Date().toISOString()
   });
-  renderTeacherTimetable();
+  selectedTimetableTeacherId = teacherId;
   showToast("Das PDF wird lokal als Vorschau angezeigt.", "success");
 }
 
+async function deleteTeacherTimetable(timetableId) {
+  const timetable = state.teacherTimetables.find((item) => item.id === timetableId);
+  if (!timetable) return;
+  if (!window.confirm(`${timetable.fileName || "Stundenplan"} wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.`)) return;
+  if (isSupabaseMode() && timetable.fileUrl && !timetable.fileUrl.startsWith("blob:") && !timetable.fileUrl.startsWith("http")) {
+    const { error } = await getSupabaseClient().storage.from("teacher-timetables").remove([timetable.fileUrl]);
+    if (error) {
+      showToast(error.message, "error");
+      return;
+    }
+  }
+  const remote = await remoteDelete("teacher_timetables", { id: timetable.id });
+  if (!remote.ok) { showToast(remote.message, "error"); return; }
+  state.teacherTimetables = state.teacherTimetables.filter((item) => item.id !== timetable.id);
+  saveData();
+  renderTeacherTimetables();
+  showToast("Der Stundenplan wurde geloescht.", "success");
+}
 function renderAdmin() {
   if (!isAdmin()) {
     showView("rooms");
@@ -1452,7 +1882,7 @@ function renderTeacherList() {
       <div>
         <strong>${escapeHtml(teacher.name)}</strong>
         <span>Saal: ${escapeHtml(getTeacherRoomNames(teacher.id) || "Keine Zuweisung")}</span>
-        <span>${escapeHtml(teacher.username)} · ${getRoleLabel(teacher)}</span>
+        <span>${escapeHtml(teacher.username)} Â· ${getRoleLabel(teacher)}</span>
       </div>
       <div class="compact-actions">
         <select data-role-teacher="${teacher.id}" ${teacher.id === "admin" ? "disabled" : ""} aria-label="Rolle fuer ${escapeHtml(teacher.name)}">
@@ -1548,7 +1978,7 @@ function renderBlockTools() {
       return `
         <div class="compact-item">
           <strong>${escapeHtml(room?.name || "-")}</strong>
-          <span>${escapeHtml(block.day)}, ${formatUiDate(parseDate(block.date))}, ${slot.start}-${slot.end} · ${escapeHtml(block.reason)}</span>
+          <span>${escapeHtml(block.day)}, ${formatUiDate(parseDate(block.date))}, ${slot.start}-${slot.end} Â· ${escapeHtml(block.reason)}</span>
           <button class="text-danger" data-delete-block="${block.id}" type="button">Loeschen</button>
         </div>
       `;
@@ -1663,7 +2093,7 @@ async function updateTeacherRole(teacherId, roleValue) {
   els.adminButton.classList.toggle("hidden", !isAdmin());
   if (currentUser.id === teacherId) {
     currentUser = teacher;
-    els.currentUserPill.textContent = `${currentUser.name} · ${getRoleLabel(currentUser)}`;
+    els.currentUserPill.textContent = `${currentUser.name} Â· ${getRoleLabel(currentUser)}`;
   }
   showToast("Die Rolle wurde aktualisiert.", "success");
 }
@@ -2269,6 +2699,18 @@ function uniqueId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+function getInitials(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return "LP";
+  return parts
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
 function safeFileName(name) {
   return String(name || "stundenplan.pdf")
     .normalize("NFD")
@@ -2304,3 +2746,8 @@ function escapeHtml(value) {
 function toCamel(id) {
   return id.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
 }
+
+
+
+
+
