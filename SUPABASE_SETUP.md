@@ -22,8 +22,17 @@ Der oeffentliche Key ist in `config.js` eingetragen. Das ist okay. Dieser Key is
 6. Danach wieder **New query**.
 7. Den Inhalt von `supabase/seed.sql` einfuegen.
 8. Auf **Run** klicken.
+9. Danach wieder **New query**.
+10. Den Inhalt von `supabase/migration_20260618_features.sql` einfuegen.
+11. Auf **Run** klicken.
 
-Damit sind Tabellen, Rechte, Raeume, Lehrpersonen, Ferien, Freigaben und Beispielstundenplaene angelegt.
+Damit sind Tabellen, Rechte, Raeume, Lehrpersonen, Ferien, Freigaben, Beispielstundenplaene, neue Rollen, Materialausleihe und Kalender angelegt.
+
+Wenn deine Datenbank schon existiert, musst du `schema.sql` und `seed.sql` nicht erneut laufen lassen. Dann reicht fuer diese Version einmal:
+
+```text
+supabase/migration_20260618_features.sql
+```
 
 ## 2. Ersten Admin-Login anlegen
 
@@ -81,6 +90,7 @@ supabase/
 ```
 
 Danach laeuft die Webseite im Supabase-Modus.
+Wichtig: Erst die Migration in Supabase ausfuehren, dann GitHub aktualisieren.
 
 ## 5. Weitere Lehrpersonen
 

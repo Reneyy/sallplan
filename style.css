@@ -294,6 +294,62 @@ textarea:focus {
   gap: 16px;
 }
 
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.module-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  color: inherit;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.module-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #2563eb, #16a34a, #f59e0b);
+}
+
+.module-card:hover {
+  transform: translateY(-2px);
+  border-color: #93c5fd;
+  box-shadow: var(--shadow);
+}
+
+.module-card strong {
+  font-size: 1.08rem;
+}
+
+.module-card span:last-child {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.module-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  background: #111827;
+  color: white;
+  font-weight: 850;
+}
+
 .room-card {
   position: relative;
   overflow: hidden;
@@ -590,6 +646,111 @@ textarea:focus {
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
 }
 
+.split-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(120px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+}
+
+.month-head,
+.month-cell {
+  min-height: 110px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+.month-head {
+  min-height: auto;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 850;
+}
+
+.month-cell {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.muted-cell {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.month-chip {
+  display: block;
+  border-radius: 8px;
+  padding: 5px 7px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.holiday-chip {
+  background: var(--holiday-bg);
+  color: var(--holiday);
+}
+
+.checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.check-label input {
+  width: auto;
+}
+
+.pdf-preview {
+  min-height: 520px;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+}
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.pdf-toolbar span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.pdf-frame {
+  width: 100%;
+  height: 680px;
+  border: 0;
+}
+
 .compact-list,
 .list-panel {
   display: grid;
@@ -702,6 +863,15 @@ textarea:focus {
 
   .two-col {
     grid-template-columns: 1fr;
+  }
+
+  .split-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .month-grid {
+    grid-template-columns: repeat(7, minmax(92px, 1fr));
+    overflow-x: auto;
   }
 
   .week-jump {

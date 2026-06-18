@@ -4,98 +4,28 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SallPlan</title>
-    <link rel="stylesheet" href="./style.css?v=20260618-2">
+    <link rel="stylesheet" href="./style.css?v=20260618-4">
     <style>
       .hidden { display: none !important; }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        background: #f6f7fb;
-        color: #1f2937;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
-      .login-screen {
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        padding: 24px;
-      }
-      .login-panel {
-        width: min(420px, 100%);
-        background: #fff;
-        border: 1px solid #d8dee9;
-        border-radius: 8px;
-        padding: 32px;
-        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
-      }
-      .brand-mark {
-        display: inline-grid;
-        place-items: center;
-        width: 48px;
-        height: 48px;
-        border-radius: 8px;
-        background: #111827;
-        color: white;
-        font-weight: 800;
-      }
+      body { margin: 0; min-height: 100vh; background: #f6f7fb; color: #1f2937; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .login-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+      .login-panel { width: min(420px, 100%); background: #fff; border: 1px solid #d8dee9; border-radius: 8px; padding: 32px; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12); }
+      .brand-mark { display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 8px; background: #111827; color: white; font-weight: 800; }
       .form-stack { display: grid; gap: 14px; }
       .login-message { min-height: 20px; margin: 0; color: #991b1b; font-weight: 700; }
       label { display: grid; gap: 6px; color: #334155; font-size: .9rem; font-weight: 700; }
-      input, select, textarea {
-        width: 100%;
-        box-sizing: border-box;
-        border: 1px solid #d8dee9;
-        border-radius: 8px;
-        padding: 10px 12px;
-        background: white;
-        color: #1f2937;
-        font: inherit;
-      }
-      button {
-        cursor: pointer;
-        border: 0;
-        border-radius: 8px;
-        min-height: 38px;
-        padding: 9px 13px;
-        font: inherit;
-        font-weight: 800;
-      }
+      input, select, textarea { width: 100%; box-sizing: border-box; border: 1px solid #d8dee9; border-radius: 8px; padding: 10px 12px; background: white; color: #1f2937; font: inherit; }
+      button { cursor: pointer; border: 0; border-radius: 8px; min-height: 38px; padding: 9px 13px; font: inherit; font-weight: 800; }
       .primary-button { background: #2563eb; color: #fff; }
       .ghost-button { background: #f1f5f9; color: #334155; }
       .danger-button { background: #fee2e2; color: #991b1b; }
-      .topbar {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 14px clamp(16px, 4vw, 36px);
-        background: rgba(255,255,255,.94);
-        border-bottom: 1px solid #d8dee9;
-      }
+      .topbar { display: flex; align-items: center; gap: 14px; padding: 14px clamp(16px, 4vw, 36px); background: rgba(255,255,255,.94); border-bottom: 1px solid #d8dee9; }
       .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
       .view { width: min(1240px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 48px; }
-      .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
-      .room-card, .admin-panel, .list-panel, .calendar-wrap {
-        background: #fff;
-        border: 1px solid #d8dee9;
-        border-radius: 8px;
-        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
-      }
-      .room-card { display: grid; gap: 8px; text-align: left; padding: 18px; color: inherit; }
-      .toast {
-        position: fixed;
-        right: 18px;
-        bottom: 18px;
-        z-index: 70;
-        max-width: min(420px, calc(100vw - 36px));
-        padding: 12px 14px;
-        border-radius: 8px;
-        background: #111827;
-        color: white;
-        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
-        opacity: 0;
-        transform: translateY(12px);
-        pointer-events: none;
-      }
+      .room-grid, .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+      .room-card, .admin-panel, .list-panel, .calendar-wrap, .module-card { background: #fff; border: 1px solid #d8dee9; border-radius: 8px; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07); }
+      .room-card, .module-card { display: grid; gap: 8px; text-align: left; padding: 18px; color: inherit; }
+      .toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; max-width: min(420px, calc(100vw - 36px)); padding: 12px 14px; border-radius: 8px; background: #111827; color: white; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12); opacity: 0; transform: translateY(12px); pointer-events: none; }
       .toast.show { opacity: 1; transform: translateY(0); }
       .toast.error { background: #991b1b; }
       .toast.success { background: #166534; }
@@ -109,34 +39,24 @@
         <div class="brand-mark">SP</div>
         <h1>SallPlan</h1>
         <p class="muted">Raumplanung und Reservierungen fuer die Schule</p>
-
         <form id="login-form" class="form-stack">
-          <label>
-            Benutzername
-            <input id="login-username" autocomplete="username" required>
-          </label>
-          <label>
-            Passwort
-            <input id="login-password" type="password" autocomplete="current-password" required>
-          </label>
+          <label>Benutzername<input id="login-username" autocomplete="username" required></label>
+          <label>Passwort<input id="login-password" type="password" autocomplete="current-password" required></label>
           <button class="primary-button" type="submit">Einloggen</button>
           <p id="login-message" class="login-message" role="alert" aria-live="polite"></p>
-          <p class="hint">
-            Demo-Zugang: <strong>admin</strong> / <strong>admin123</strong>.
-            Weitere Passwoerter stehen in der README.
-          </p>
         </form>
       </div>
     </section>
 
     <main id="app" class="app hidden">
       <header class="topbar">
-        <button id="back-to-rooms" class="icon-button hidden" type="button" title="Zurueck zur Raumuebersicht" aria-label="Zurueck zur Raumuebersicht">←</button>
+        <button id="back-to-rooms" class="icon-button hidden" type="button" title="Zurueck" aria-label="Zurueck">←</button>
         <div>
           <div class="product-title">SallPlan</div>
-          <div id="page-subtitle" class="page-subtitle">Raeume</div>
+          <div id="page-subtitle" class="page-subtitle">Start</div>
         </div>
         <div class="topbar-actions">
+          <button id="home-button" class="ghost-button" type="button">Start</button>
           <button id="my-reservations-button" class="ghost-button" type="button">Meine Reservierungen</button>
           <button id="admin-button" class="ghost-button hidden" type="button">Admin</button>
           <span id="storage-mode-pill" class="mode-pill"></span>
@@ -145,25 +65,32 @@
         </div>
       </header>
 
-      <section id="room-overview" class="view">
+      <section id="home-view" class="view">
         <div class="toolbar">
           <div>
-            <h2>Raeume</h2>
+            <h2>Start</h2>
+            <p class="muted">Waehle den Bereich, mit dem du arbeiten moechtest.</p>
+          </div>
+        </div>
+        <div class="module-grid">
+          <button class="module-card" type="button" data-module="rooms"><span class="module-icon">RP</span><strong>Raumplanung</strong><span>Raeume suchen, Wochenplaene ansehen und reservieren.</span></button>
+          <button class="module-card" type="button" data-module="calendar"><span class="module-icon">KA</span><strong>Kalender</strong><span>Monatskalender mit Ferien und schulischen Terminen.</span></button>
+          <button class="module-card" type="button" data-module="materials"><span class="module-icon">MA</span><strong>Materialausleihe</strong><span>Materialien ausleihen und Doppelbuchungen vermeiden.</span></button>
+          <button class="module-card" type="button" data-module="teacher-timetables"><span class="module-icon">LP</span><strong>Lehrerstundenplaene</strong><span>PDF-Stundenplaene pro Lehrperson anzeigen.</span></button>
+        </div>
+      </section>
+
+      <section id="room-overview" class="view hidden">
+        <div class="toolbar">
+          <div>
+            <h2>Raumplanung</h2>
             <p class="muted">Waehle einen Raum, um die Wochenansicht zu oeffnen.</p>
           </div>
           <div class="filters">
-            <label>
-              Raumtyp
-              <select id="room-type-filter">
-                <option value="all">Alle Raeume</option>
-                <option value="fixed_schedule">Klassensaele</option>
-                <option value="free_booking">Frei buchbare Raeume</option>
-              </select>
-            </label>
-            <label>
-              Suche
-              <input id="room-search" placeholder="Raum suchen ...">
-            </label>
+            <label>Datum<input id="room-date-filter" type="date"></label>
+            <label class="check-label"><input id="only-free-rooms" type="checkbox"> Nur Raeume mit freien Zeiten</label>
+            <label>Raumtyp<select id="room-type-filter"><option value="all">Alle Raeume</option><option value="fixed_schedule">Klassensaele</option><option value="free_booking">Frei buchbare Raeume</option></select></label>
+            <label>Suche<input id="room-search" placeholder="Raum suchen ..."></label>
           </div>
         </div>
         <div id="room-grid" class="room-grid"></div>
@@ -183,117 +110,142 @@
               <div id="week-label" class="week-label"></div>
               <div id="week-rule" class="week-rule"></div>
               <div class="week-jump">
-                <label>
-                  Datum waehlen
-                  <input id="week-date-picker" type="date">
-                </label>
+                <label>Datum waehlen<input id="week-date-picker" type="date"></label>
                 <button id="today-week-button" class="ghost-button" type="button">Heute</button>
               </div>
             </div>
             <button id="next-week" class="icon-button" type="button" title="Naechste Woche" aria-label="Naechste Woche">›</button>
           </div>
         </div>
-
         <div id="schedule-actions" class="schedule-actions hidden">
           <button id="edit-schedule-button" class="secondary-button" type="button">Stundenplan bearbeiten</button>
           <button id="recurring-release-button" class="secondary-button" type="button">Dauerhafte Freigabe</button>
         </div>
+        <div class="calendar-wrap"><table id="room-calendar" class="calendar"></table></div>
+      </section>
 
-        <div class="calendar-wrap">
-          <table id="room-calendar" class="calendar"></table>
+      <section id="general-calendar-view" class="view hidden">
+        <div class="toolbar">
+          <div><h2>Kalender</h2><p class="muted">Schulische Termine und Ferien im Monatsueberblick.</p></div>
+          <div class="filters"><input id="calendar-month" type="month"><button id="calendar-event-button" class="primary-button" type="button">Termin eintragen</button></div>
+        </div>
+        <div id="general-calendar-grid" class="month-grid"></div>
+      </section>
+
+      <section id="material-view" class="view hidden">
+        <div class="toolbar">
+          <div><h2>Materialausleihe</h2><p class="muted">Materialien waehlen und fuer einen Slot ausleihen.</p></div>
+          <button id="material-admin-button" class="primary-button hidden" type="button">Material verwalten</button>
+        </div>
+        <div id="material-grid" class="room-grid"></div>
+      </section>
+
+      <section id="teacher-timetables-view" class="view hidden">
+        <div class="toolbar"><div><h2>Lehrerstundenplaene</h2><p class="muted">Lehrperson auswaehlen und PDF-Stundenplan anzeigen.</p></div></div>
+        <div class="split-layout">
+          <div class="list-panel">
+            <label>Lehrperson<select id="teacher-timetable-select"></select></label>
+            <div id="teacher-timetable-actions" class="form-stack hidden">
+              <label>PDF-Datei<input id="teacher-timetable-file" type="file" accept="application/pdf"></label>
+              <button id="teacher-timetable-save" class="primary-button" type="button">PDF lokal anzeigen</button>
+              <p class="hint">Supabase Storage wird spaeter fuer dauerhaft gespeicherte PDFs angebunden.</p>
+            </div>
+          </div>
+          <div id="teacher-timetable-preview" class="pdf-preview"></div>
         </div>
       </section>
 
       <section id="my-reservations-view" class="view hidden">
-        <div class="toolbar">
-          <div>
-            <h2>Meine Reservierungen</h2>
-            <p class="muted">Alle Buchungen des aktuellen Benutzerkontos.</p>
-          </div>
-        </div>
+        <div class="toolbar"><div><h2>Meine Reservierungen</h2><p class="muted">Alle Buchungen des aktuellen Benutzerkontos.</p></div></div>
         <div id="my-reservations-list" class="list-panel"></div>
       </section>
 
       <section id="admin-view" class="view hidden">
         <div class="toolbar">
-          <div>
-            <h2>Adminbereich</h2>
-            <p class="muted">Lokale Verwaltung fuer den Klick-Prototyp.</p>
-          </div>
+          <div><h2>Adminbereich</h2><p class="muted">Waehle eine Verwaltungskategorie.</p></div>
           <button id="reset-data-button" class="danger-button" type="button">Beispieldaten zuruecksetzen</button>
         </div>
-
-        <div class="admin-grid">
-          <section class="admin-panel">
-            <h3>Lehrpersonen</h3>
-            <form id="teacher-form" class="form-grid">
-              <input name="name" placeholder="Name" required>
-              <input name="username" placeholder="Login" required>
-              <input name="password" placeholder="Startpasswort" required>
-              <select name="role">
-                <option value="subject_teacher">Nebenfachlehrer/in</option>
-                <option value="class_teacher">Klassenlehrer/in</option>
-                <option value="admin">Admin</option>
-              </select>
-              <button class="primary-button" type="submit">Lehrperson anlegen</button>
-            </form>
-            <div id="teacher-list" class="compact-list"></div>
-          </section>
-
-          <section class="admin-panel">
-            <h3>Raeume</h3>
-            <form id="room-form" class="form-grid">
-              <input name="name" placeholder="Raumname" required>
-              <select name="type">
-                <option value="fixed_schedule">Klassensaal</option>
-                <option value="free_booking">Frei buchbarer Raum</option>
-              </select>
-              <input name="building" placeholder="Gebaeude" value="Hauptgebaeude">
-              <input name="floor" placeholder="Etage">
-              <input name="capacity" type="number" min="1" placeholder="Plaetze">
-              <select name="responsibleTeacherId" id="room-responsible-select"></select>
-              <button class="primary-button" type="submit">Raum anlegen</button>
-            </form>
-            <div id="admin-room-list" class="compact-list"></div>
-          </section>
-
-          <section class="admin-panel">
-            <h3>Ferien</h3>
-            <form id="holiday-form" class="form-grid">
-              <input name="name" placeholder="Ferienname" required>
-              <input name="startDate" type="date" required>
-              <input name="endDate" type="date" required>
-              <button class="primary-button" type="submit">Ferien eintragen</button>
-            </form>
-            <div id="holiday-list" class="compact-list"></div>
-          </section>
-
-          <section class="admin-panel">
-            <h3>Sperrungen</h3>
-            <form id="block-form" class="form-grid">
-              <select name="roomId" id="block-room-select"></select>
-              <input name="date" type="date" required>
-              <select name="slotId" id="block-slot-select"></select>
-              <input name="reason" placeholder="Grund, z. B. Reinigung" required>
-              <button class="primary-button" type="submit">Raum sperren</button>
-            </form>
-            <div id="block-list" class="compact-list"></div>
-          </section>
+        <div id="admin-home" class="module-grid">
+          <button class="module-card" type="button" data-admin-section="teachers"><span class="module-icon">LP</span><strong>Lehrpersonen</strong><span>Rollen und Saalzuweisungen.</span></button>
+          <button class="module-card" type="button" data-admin-section="rooms"><span class="module-icon">RM</span><strong>Raeume</strong><span>Raumkarten, Lehrer und Status.</span></button>
+          <button class="module-card" type="button" data-admin-section="holidays"><span class="module-icon">FE</span><strong>Ferien</strong><span>Ferienzeiten verwalten.</span></button>
+          <button class="module-card" type="button" data-admin-section="blocks"><span class="module-icon">SP</span><strong>Sperrungen</strong><span>Raeume fuer Termine sperren.</span></button>
+          <button class="module-card" type="button" data-admin-section="import"><span class="module-icon">IM</span><strong>Daten/Import</strong><span>PDF-Import vorbereiten.</span></button>
+          <button class="module-card" type="button" data-admin-section="settings"><span class="module-icon">ES</span><strong>Einstellungen</strong><span>Schuljahr und Benachrichtigungen.</span></button>
+        </div>
+        <div id="admin-detail" class="hidden">
+          <button id="admin-back-button" class="ghost-button" type="button">Zurueck zum Adminbereich</button>
+          <div class="admin-grid">
+            <section id="admin-teachers-panel" class="admin-panel hidden">
+              <h3>Lehrpersonen</h3>
+              <form id="teacher-form" class="form-grid">
+                <input name="name" placeholder="Name" required>
+                <input name="username" placeholder="Login/E-Mail" required>
+                <input name="password" placeholder="Startpasswort" required>
+                <select name="role" id="teacher-role-select"></select>
+                <button class="primary-button" type="submit">Lehrperson anlegen</button>
+              </form>
+              <div id="teacher-list" class="compact-list"></div>
+            </section>
+            <section id="admin-rooms-panel" class="admin-panel hidden">
+              <h3>Raeume</h3>
+              <form id="room-form" class="form-grid">
+                <input name="name" placeholder="Raumname" required>
+                <input name="roomNumber" placeholder="Saalnummer">
+                <input name="iconLabel" placeholder="Initialen">
+                <select name="type"><option value="fixed_schedule">Klassensaal</option><option value="free_booking">Frei buchbarer Raum</option></select>
+                <select name="responsibleTeacherId" id="room-responsible-select"></select>
+                <button class="primary-button" type="submit">Raum anlegen</button>
+              </form>
+              <div id="admin-room-list" class="compact-list"></div>
+            </section>
+            <section id="admin-holidays-panel" class="admin-panel hidden">
+              <h3>Ferien</h3>
+              <form id="holiday-form" class="form-grid">
+                <input name="name" placeholder="Ferienname" required>
+                <input name="startDate" type="date" required>
+                <input name="endDate" type="date" required>
+                <button class="primary-button" type="submit">Ferien eintragen</button>
+              </form>
+              <div id="holiday-list" class="compact-list"></div>
+            </section>
+            <section id="admin-blocks-panel" class="admin-panel hidden">
+              <h3>Sperrungen</h3>
+              <form id="block-form" class="form-grid">
+                <select name="roomId" id="block-room-select"></select>
+                <input name="date" type="date" required>
+                <select name="slotId" id="block-slot-select"></select>
+                <input name="reason" placeholder="Grund, z. B. Reinigung" required>
+                <button class="primary-button" type="submit">Raum sperren</button>
+              </form>
+              <div id="block-list" class="compact-list"></div>
+            </section>
+            <section id="admin-import-panel" class="admin-panel hidden">
+              <h3>Daten/Import</h3>
+              <p class="muted">PDF-Stundenplanimport wird vorbereitet: PDF hochladen, Vorschau pruefen, korrigieren und erst dann uebernehmen.</p>
+              <button class="secondary-button" type="button" disabled>PDF-Import vorbereiten</button>
+            </section>
+            <section id="admin-settings-panel" class="admin-panel hidden">
+              <h3>Einstellungen</h3>
+              <p class="muted">E-Mail-Benachrichtigungen sind vorbereitet, aber noch nicht aktiv versendet.</p>
+              <label class="check-label"><input type="checkbox" disabled> Klassenlehrer/in bei Raumreservierung per E-Mail informieren</label>
+            </section>
+          </div>
         </div>
       </section>
     </main>
 
     <div id="modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal">
-        <button id="modal-close" class="modal-close" type="button" aria-label="Schliessen">×</button>
+        <button id="modal-close" class="modal-close" type="button" aria-label="Schliessen">x</button>
         <h2 id="modal-title"></h2>
         <div id="modal-body"></div>
       </div>
     </div>
 
-    <script src="./config.js?v=20260618-2"></script>
-    <script src="./data.js?v=20260618-2"></script>
+    <script src="./config.js?v=20260618-4"></script>
+    <script src="./data.js?v=20260618-4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=20260618-2"></script>
+    <script src="./app.js?v=20260618-4"></script>
   </body>
 </html>

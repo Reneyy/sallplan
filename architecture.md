@@ -7,6 +7,10 @@
 - `data.js`: Konstanten, Zeitraster und Beispieldaten.
 - `app.js`: Zustand, Rechte, Statuslogik, Rendering und Interaktionen.
 - `README.md`: Startanleitung und Projektuebersicht.
+- `config.js`: Demo-/Supabase-Konfiguration.
+- `supabase/schema.sql`: produktives Datenbankschema.
+- `supabase/seed.sql`: optionale Startdaten.
+- `supabase/functions/admin-create-teacher/index.ts`: sichere Benutzeranlage durch Admins.
 
 ## Statusberechnung
 
@@ -77,7 +81,7 @@ Admins koennen im Prototyp Lehrpersonen, Raeume und Ferien loeschen.
 
 ## Supabase-Migration
 
-Die aktuellen Arrays lassen sich direkt in Tabellen ueberfuehren:
+Die aktuellen Arrays lassen sich in Tabellen ueberfuehren:
 
 - `teachers`
 - `rooms`
@@ -89,4 +93,4 @@ Die aktuellen Arrays lassen sich direkt in Tabellen ueberfuehren:
 - `room_blocks`
 - `school_holidays`
 
-In der Supabase-Version sollten Buchungen serverseitig abgesichert werden, zum Beispiel mit eindeutigen Constraints auf `(room_id, date, slot_id)` und Row-Level-Security fuer Rollen.
+In `supabase/schema.sql` sind Buchungen serverseitig mit einem eindeutigen Constraint auf `(room_id, date, slot_id)` abgesichert. Row-Level-Security erlaubt allen angemeldeten Personen das Lesen, begrenzt Reservierungen auf eigene Buchungen und Adminrechte, und erlaubt Stundenplanbearbeitung nur Admins oder zustaendigen Klassenlehrer/innen.

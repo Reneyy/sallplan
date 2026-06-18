@@ -1,6 +1,19 @@
-const SALLPLAN_STORAGE_KEY = "sallplan.prototype.v2";
+const SALLPLAN_STORAGE_KEY = "sallplan.prototype.v3";
 
 const DAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+
+const TEACHER_TYPES = [
+  { id: "class_teacher", label: "Klassenlehrer/in", canManageRooms: true },
+  { id: "tap", label: "TAP", canManageRooms: true },
+  { id: "eps", label: "EPS", canManageRooms: true },
+  { id: "iebs", label: "I-EBS", canManageRooms: true },
+  { id: "ed_grad", label: "Éd.grad", canManageRooms: true },
+  { id: "aebs", label: "A-EBS", canManageRooms: false },
+  { id: "concierge", label: "Concierge", canManageRooms: true },
+  { id: "autre", label: "Autre", canManageRooms: false },
+  { id: "intervenant", label: "Intervenant", canManageRooms: false },
+  { id: "admin", label: "Admin", canManageRooms: true }
+];
 
 const SLOT_ROWS = [
   { id: "row1", label: "1. Stunde", kind: "lesson" },
@@ -52,21 +65,27 @@ function createDefaultState() {
       { id: "t1", name: "Frau Mueller", username: "mueller", password: "schule123", role: "teacher", teacherType: "class_teacher" },
       { id: "t2", name: "Herr Weber", username: "weber", password: "schule123", role: "teacher", teacherType: "class_teacher" },
       { id: "t3", name: "Frau Eischen", username: "eischen", password: "schule123", role: "teacher", teacherType: "class_teacher" },
-      { id: "t4", name: "Herr Klein", username: "klein", password: "schule123", role: "teacher", teacherType: "subject_teacher" },
+      { id: "t4", name: "Herr Klein", username: "klein", password: "schule123", role: "teacher", teacherType: "tap" },
       { id: "t5", name: "Frau Schneider", username: "schneider", password: "schule123", role: "teacher", teacherType: "class_teacher" },
-      { id: "t6", name: "Frau Becker", username: "becker", password: "schule123", role: "teacher", teacherType: "subject_teacher" }
+      { id: "t6", name: "Frau Becker", username: "becker", password: "schule123", role: "teacher", teacherType: "aebs" }
     ],
     rooms: [
-      { id: "r1", name: "Saal C2.1", type: "fixed_schedule", building: "Hauptgebaeude", floor: "1. Etage", capacity: 24, responsibleTeacherId: "t3", active: true },
-      { id: "r2", name: "Saal C2.2", type: "fixed_schedule", building: "Hauptgebaeude", floor: "1. Etage", capacity: 22, responsibleTeacherId: "t1", active: true },
-      { id: "r3", name: "Saal C3.1", type: "fixed_schedule", building: "Hauptgebaeude", floor: "2. Etage", capacity: 25, responsibleTeacherId: "t2", active: true },
-      { id: "r4", name: "Saal C4.1", type: "fixed_schedule", building: "Hauptgebaeude", floor: "3. Etage", capacity: 24, responsibleTeacherId: "t5", active: true },
-      { id: "r5", name: "Foerderraum", type: "free_booking", building: "Hauptgebaeude", floor: "Erdgeschoss", capacity: 8, responsibleTeacherId: null, active: true },
-      { id: "r6", name: "Musikraum", type: "free_booking", building: "Nebengebaeude", floor: "Erdgeschoss", capacity: 20, responsibleTeacherId: null, active: true },
-      { id: "r7", name: "Informatikraum", type: "free_booking", building: "Hauptgebaeude", floor: "2. Etage", capacity: 18, responsibleTeacherId: null, active: true },
-      { id: "r8", name: "Besprechungsraum", type: "free_booking", building: "Verwaltung", floor: "1. Etage", capacity: 10, responsibleTeacherId: null, active: true },
-      { id: "r9", name: "Bibliothek", type: "free_booking", building: "Hauptgebaeude", floor: "Erdgeschoss", capacity: 26, responsibleTeacherId: null, active: true },
-      { id: "r10", name: "Mehrzweckraum", type: "free_booking", building: "Nebengebaeude", floor: "Erdgeschoss", capacity: 60, responsibleTeacherId: null, active: true }
+      { id: "r1", name: "Sall C2.1", roomNumber: "C2.1", iconLabel: "C21", type: "fixed_schedule", building: "", floor: "", capacity: 0, responsibleTeacherId: "t3", active: true },
+      { id: "r2", name: "Sall C2.2", roomNumber: "C2.2", iconLabel: "C22", type: "fixed_schedule", building: "", floor: "", capacity: 0, responsibleTeacherId: "t1", active: true },
+      { id: "r3", name: "Sall C3.1", roomNumber: "C3.1", iconLabel: "C31", type: "fixed_schedule", building: "", floor: "", capacity: 0, responsibleTeacherId: "t2", active: true },
+      { id: "r4", name: "Sall C4.1", roomNumber: "C4.1", iconLabel: "C41", type: "fixed_schedule", building: "", floor: "", capacity: 0, responsibleTeacherId: "t5", active: true },
+      { id: "r5", name: "Foerderraum", roomNumber: "F1", iconLabel: "FO", type: "free_booking", building: "", floor: "", capacity: 0, responsibleTeacherId: null, active: true },
+      { id: "r6", name: "Musikraum", roomNumber: "M1", iconLabel: "MU", type: "free_booking", building: "", floor: "", capacity: 0, responsibleTeacherId: null, active: true },
+      { id: "r7", name: "Informatikraum", roomNumber: "I1", iconLabel: "IT", type: "free_booking", building: "", floor: "", capacity: 0, responsibleTeacherId: null, active: true },
+      { id: "r8", name: "Besprechungsraum", roomNumber: "B1", iconLabel: "BE", type: "free_booking", building: "", floor: "", capacity: 0, responsibleTeacherId: null, active: true },
+      { id: "r9", name: "Bibliothek", roomNumber: "BIB", iconLabel: "BI", type: "free_booking", building: "", floor: "", capacity: 0, responsibleTeacherId: null, active: true },
+      { id: "r10", name: "Mehrzweckraum", roomNumber: "MZR", iconLabel: "MZ", type: "free_booking", building: "", floor: "", capacity: 0, responsibleTeacherId: null, active: true }
+    ],
+    roomTeachers: [
+      { roomId: "r1", teacherId: "t3", relationType: "responsible" },
+      { roomId: "r2", teacherId: "t1", relationType: "responsible" },
+      { roomId: "r3", teacherId: "t2", relationType: "responsible" },
+      { roomId: "r4", teacherId: "t5", relationType: "responsible" }
     ],
     fixedSchedule: buildFixedSchedule(),
     recurringReleases: [
@@ -89,7 +108,23 @@ function createDefaultState() {
     schoolHolidays: [
       { id: "h1", name: "Sommerferien", startDate: "2026-07-16", endDate: "2026-09-13", createdBy: "admin" },
       { id: "h2", name: "Herbstferien", startDate: "2026-10-26", endDate: "2026-10-30", createdBy: "admin" }
-    ]
+    ],
+    calendarEvents: [
+      { id: "evt1", title: "Paedagogischer Tag", date: formatDate(addDays(currentMonday, 10)), slotId: "row1", note: "Schulinterne Weiterbildung", createdBy: "admin" }
+    ],
+    materials: [
+      { id: "mat1", name: "iPad-Koffer", code: "IPAD", iconLabel: "IP", active: true },
+      { id: "mat2", name: "Beamer mobil", code: "BEAM", iconLabel: "BM", active: true },
+      { id: "mat3", name: "Lautsprecher", code: "AUDIO", iconLabel: "LS", active: true },
+      { id: "mat4", name: "Blue-Bots", code: "BBOT", iconLabel: "BB", active: true },
+      { id: "mat5", name: "Kamera", code: "CAM", iconLabel: "KA", active: true },
+      { id: "mat6", name: "Sportmaterial", code: "SPORT", iconLabel: "SP", active: true },
+      { id: "mat7", name: "Buecherkiste", code: "BOOK", iconLabel: "BK", active: true },
+      { id: "mat8", name: "Experimentierbox", code: "EXP", iconLabel: "EX", active: true },
+      { id: "mat9", name: "Moderationsmaterial", code: "MOD", iconLabel: "MO", active: true }
+    ],
+    materialReservations: [],
+    teacherTimetables: []
   };
 }
 

@@ -1,9 +1,10 @@
 let state = loadInitialData();
 let currentUser = null;
-let currentView = "rooms";
+let currentView = "home";
 let selectedRoomId = null;
 let selectedWeekStart = getMonday(new Date());
 let supabaseClient = null;
+let activeAdminSection = null;
 
 const els = {};
 
@@ -15,16 +16,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function bindElements() {
   [
-    "login-screen", "login-form", "login-username", "login-password", "login-message", "app",
+    "login-screen", "login-form", "login-username", "login-password", "login-message", "app", "home-view", "home-button",
     "current-user-pill", "storage-mode-pill", "logout-button", "room-overview", "room-grid",
-    "room-type-filter", "room-search", "room-detail", "room-title",
+    "room-type-filter", "room-search", "room-date-filter", "only-free-rooms", "room-detail", "room-title",
     "room-meta", "room-tags", "week-label", "week-rule", "week-date-picker", "today-week-button", "prev-week",
     "next-week", "room-calendar", "back-to-rooms", "my-reservations-button",
+    "general-calendar-view", "calendar-month", "calendar-event-button", "general-calendar-grid",
+    "material-view", "material-grid", "material-admin-button",
+    "teacher-timetables-view", "teacher-timetable-select", "teacher-timetable-actions", "teacher-timetable-file", "teacher-timetable-save", "teacher-timetable-preview",
     "my-reservations-view", "my-reservations-list", "admin-button",
     "admin-view", "toast", "modal", "modal-title", "modal-body",
     "modal-close", "page-subtitle", "schedule-actions", "edit-schedule-button",
     "recurring-release-button", "room-qr-link", "reset-data-button",
-    "teacher-form", "teacher-list", "room-form", "admin-room-list",
+    "admin-home", "admin-detail", "admin-back-button", "admin-teachers-panel", "admin-rooms-panel", "admin-holidays-panel", "admin-blocks-panel", "admin-import-panel", "admin-settings-panel",
+    "teacher-form", "teacher-list", "teacher-role-select", "room-form", "admin-room-list",
     "holiday-form", "holiday-list", "room-responsible-select"
     , "block-form", "block-room-select", "block-slot-select", "block-list"
   ].forEach((id) => {
@@ -34,12 +39,27 @@ function bindElements() {
 
 function bindEvents() {
   els.loginForm.addEventListener("submit", handleLogin);
+  els.homeButton.addEventListener("click", () => showView("home"));
   els.logoutButton.addEventListener("click", logout);
   els.roomTypeFilter.addEventListener("change", renderRoomOverview);
   els.roomSearch.addEventListener("input", renderRoomOverview);
-  els.backToRooms.addEventListener("click", () => showView("rooms"));
+  els.roomDateFilter.addEventListener("change", renderRoomOverview);
+  els.onlyFreeRooms.addEventListener("change", renderRoomOverview);
+  els.backToRooms.addEventListener("click", () => selectedRoomId ? showView("rooms") : showView("home"));
   els.myReservationsButton.addEventListener("click", () => showView("myReservations"));
   els.adminButton.addEventListener("click", () => showView("admin"));
+  document.querySelectorAll("[data-module]").forEach((button) => {
+    button.addEventListener("click", () => showView(button.dataset.module));
+  });
+  document.querySelectorAll("[data-admin-section]").forEach((button) => {
+    button.addEventListener("click", () => showAdminSection(button.dataset.adminSection));
+  });
+  els.adminBackButton.addEventListener("click", showAdminHome);
+  els.calendarMonth.addEventListener("change", renderGeneralCalendar);
+  els.calendarEventButton.addEventListener("click", openCalendarEventForm);
+  els.materialAdminButton.addEventListener("click", openMaterialAdmin);
+  els.teacherTimetableSelect.addEventListener("change", renderTeacherTimetable);
+  els.teacherTimetableSave.addEventListener("click", saveTeacherTimetablePreview);
   els.prevWeek.addEventListener("click", () => changeWeek(-7));
   els.nextWeek.addEventListener("click", () => changeWeek(7));
   els.weekDatePicker.addEventListener("change", () => {
@@ -107,7 +127,7 @@ async function loadRemoteState() {
   const client = getSupabaseClient();
   if (!client) return false;
 
-  const tables = [
+  const requiredTables = [
     "teachers",
     "rooms",
     "fixed_schedule",
@@ -117,27 +137,51 @@ async function loadRemoteState() {
     "room_blocks",
     "school_holidays"
   ];
+  const optionalTables = [
+    "room_teachers",
+    "calendar_events",
+    "materials",
+    "material_reservations",
+    "teacher_timetables"
+  ];
 
-  const results = await Promise.all(tables.map((table) => client.from(table).select("*")));
+  const results = await Promise.all(requiredTables.map((table) => client.from(table).select("*")));
   const failed = results.find((result) => result.error);
   if (failed) {
     showToast(`Supabase-Daten konnten nicht geladen werden: ${failed.error.message}`, "error");
     return false;
   }
 
-  const byTable = Object.fromEntries(tables.map((table, index) => [table, results[index].data || []]));
+  const optionalResults = await Promise.all(optionalTables.map(async (table) => {
+    const result = await client.from(table).select("*");
+    return [table, result.error ? [] : (result.data || [])];
+  }));
+  const byTable = {
+    ...Object.fromEntries(requiredTables.map((table, index) => [table, results[index].data || []])),
+    ...Object.fromEntries(optionalResults)
+  };
   const fallback = createDefaultState();
   state = {
     meta: fallback.meta,
     teachers: byTable.teachers.map(mapTeacherFromDb),
     rooms: byTable.rooms.map(mapRoomFromDb),
+    roomTeachers: byTable.room_teachers.map(mapRoomTeacherFromDb),
     fixedSchedule: byTable.fixed_schedule.map(mapFixedScheduleFromDb),
     recurringReleases: byTable.recurring_releases.map(mapRecurringReleaseFromDb),
     manualReleases: byTable.manual_releases.map(mapManualReleaseFromDb),
     reservations: byTable.reservations.map(mapReservationFromDb),
     roomBlocks: byTable.room_blocks.map(mapRoomBlockFromDb),
-    schoolHolidays: byTable.school_holidays.map(mapHolidayFromDb)
+    schoolHolidays: byTable.school_holidays.map(mapHolidayFromDb),
+    calendarEvents: byTable.calendar_events.map(mapCalendarEventFromDb),
+    materials: byTable.materials.length ? byTable.materials.map(mapMaterialFromDb) : fallback.materials,
+    materialReservations: byTable.material_reservations.map(mapMaterialReservationFromDb),
+    teacherTimetables: byTable.teacher_timetables.map(mapTeacherTimetableFromDb)
   };
+  if (!state.roomTeachers.length) {
+    state.roomTeachers = state.rooms
+      .filter((room) => room.responsibleTeacherId)
+      .map((room) => ({ roomId: room.id, teacherId: room.responsibleTeacherId, relationType: "responsible" }));
+  }
   return true;
 }
 
@@ -157,12 +201,22 @@ function mapRoomFromDb(row) {
   return {
     id: row.id,
     name: row.name,
+    roomNumber: row.room_number || "",
+    iconLabel: row.icon_label || "",
     type: row.type,
     building: row.building,
     floor: row.floor,
     capacity: row.capacity,
     responsibleTeacherId: row.responsible_teacher_id,
     active: row.active
+  };
+}
+
+function mapRoomTeacherFromDb(row) {
+  return {
+    roomId: row.room_id,
+    teacherId: row.teacher_id,
+    relationType: row.relation_type || "responsible"
   };
 }
 
@@ -237,6 +291,51 @@ function mapHolidayFromDb(row) {
     startDate: row.start_date,
     endDate: row.end_date,
     createdBy: row.created_by
+  };
+}
+
+function mapCalendarEventFromDb(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    date: row.date,
+    slotId: row.slot_id,
+    note: row.note || "",
+    createdBy: row.created_by
+  };
+}
+
+function mapMaterialFromDb(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    code: row.code || "",
+    iconLabel: row.icon_label || "",
+    active: row.active
+  };
+}
+
+function mapMaterialReservationFromDb(row) {
+  return {
+    id: row.id,
+    materialId: row.material_id,
+    teacherId: row.teacher_id,
+    date: row.date,
+    slotId: row.slot_id,
+    note: row.note || "",
+    returned: row.returned
+  };
+}
+
+function mapTeacherTimetableFromDb(row) {
+  return {
+    id: row.id,
+    teacherId: row.teacher_id,
+    schoolYear: row.school_year,
+    fileName: row.file_name,
+    fileUrl: row.file_url,
+    uploadedBy: row.uploaded_by,
+    uploadedAt: row.uploaded_at
   };
 }
 
@@ -371,7 +470,7 @@ function startApp() {
   if (roomFromUrl && state.rooms.some((room) => room.id === roomFromUrl)) {
     openRoom(roomFromUrl);
   } else {
-    showView("rooms");
+    showView("home");
   }
 }
 
@@ -387,16 +486,41 @@ async function logout() {
 
 function showView(view) {
   currentView = view;
+  els.homeView.classList.toggle("hidden", view !== "home");
   els.roomOverview.classList.toggle("hidden", view !== "rooms");
   els.roomDetail.classList.toggle("hidden", view !== "roomDetail");
+  els.generalCalendarView.classList.toggle("hidden", view !== "calendar");
+  els.materialView.classList.toggle("hidden", view !== "materials");
+  els.teacherTimetablesView.classList.toggle("hidden", view !== "teacher-timetables");
   els.myReservationsView.classList.toggle("hidden", view !== "myReservations");
   els.adminView.classList.toggle("hidden", view !== "admin");
-  els.backToRooms.classList.toggle("hidden", view === "rooms");
+  els.backToRooms.classList.toggle("hidden", view === "home");
 
+  if (view === "home") {
+    selectedRoomId = null;
+    els.pageSubtitle.textContent = "Start";
+  }
   if (view === "rooms") {
     selectedRoomId = null;
-    els.pageSubtitle.textContent = "Raeume";
+    els.pageSubtitle.textContent = "Raumplanung";
+    if (!els.roomDateFilter.value) els.roomDateFilter.value = formatDate(new Date());
     renderRoomOverview();
+  }
+  if (view === "calendar") {
+    selectedRoomId = null;
+    els.pageSubtitle.textContent = "Kalender";
+    if (!els.calendarMonth.value) els.calendarMonth.value = formatMonthInput(new Date());
+    renderGeneralCalendar();
+  }
+  if (view === "materials") {
+    selectedRoomId = null;
+    els.pageSubtitle.textContent = "Materialausleihe";
+    renderMaterials();
+  }
+  if (view === "teacher-timetables") {
+    selectedRoomId = null;
+    els.pageSubtitle.textContent = "Lehrerstundenplaene";
+    renderTeacherTimetables();
   }
   if (view === "myReservations") {
     els.pageSubtitle.textContent = "Meine Reservierungen";
@@ -405,32 +529,37 @@ function showView(view) {
   if (view === "admin") {
     els.pageSubtitle.textContent = "Adminbereich";
     renderAdmin();
+    showAdminHome();
   }
 }
 
 function renderRoomOverview() {
   const type = els.roomTypeFilter.value;
   const search = els.roomSearch.value.trim().toLowerCase();
+  const selectedDate = els.roomDateFilter.value || formatDate(new Date());
+  const selectedDay = getDayName(parseDate(selectedDate));
+  const onlyFree = els.onlyFreeRooms.checked;
   const rooms = state.rooms
     .filter((room) => type === "all" || room.type === type)
     .filter((room) => {
-      const haystack = `${room.name} ${room.building} ${room.floor}`.toLowerCase();
+      const haystack = `${room.name} ${room.roomNumber || ""} ${getRoomTeachers(room.id).map((teacher) => teacher.name).join(" ")}`.toLowerCase();
       return !search || haystack.includes(search);
-    });
+    })
+    .filter((room) => !onlyFree || countFreeSlotsOnDate(room.id, selectedDate) > 0);
 
   els.roomGrid.innerHTML = rooms.map((room) => {
-    const freeCount = countBookableSlots(room.id, selectedWeekStart);
-    const teacher = findTeacher(room.responsibleTeacherId);
+    const freeCount = countFreeSlotsOnDate(room.id, selectedDate);
+    const teacherNames = getRoomTeachers(room.id).map((teacher) => teacher.name).join(", ") || "Keine Zuweisung";
     const icon = getRoomIcon(room);
+    const weekIsBookable = canModifyWeek(getMonday(parseDate(selectedDate)));
     return `
       <button class="room-card ${room.active ? "" : "is-inactive"}" type="button" data-room-id="${room.id}">
         <span class="room-icon">${icon}</span>
         <span class="room-card-title">${escapeHtml(room.name)}</span>
-        <span class="room-card-type">${room.type === "fixed_schedule" ? "Klassensaal" : "Buchbarer Raum"}</span>
-        <span class="room-card-meta">${escapeHtml(room.building)}, ${escapeHtml(room.floor || "-")}</span>
-        <span class="room-card-meta">${room.capacity || "-"} Plaetze</span>
-        ${teacher ? `<span class="room-card-meta">Klassenlehrer/in: ${escapeHtml(teacher.name)}</span>` : ""}
-        <span class="availability-pill">${room.active ? `${freeCount} buchbare Stunden diese Woche` : "Inaktiv"}</span>
+        <span class="room-card-type">${escapeHtml(room.roomNumber || "Ohne Nummer")}</span>
+        <span class="room-card-meta">Zugewiesen: ${escapeHtml(teacherNames)}</span>
+        <span class="availability-pill">${room.active ? `${freeCount} freie Zeiten am ${formatUiDate(parseDate(selectedDate))}` : "Inaktiv"}</span>
+        ${weekIsBookable ? "" : `<span class="room-card-meta">Nur Ansicht</span>`}
       </button>
     `;
   }).join("");
@@ -449,12 +578,12 @@ function openRoom(roomId) {
 function showRoomDetail() {
   showView("roomDetail");
   const room = findRoom(selectedRoomId);
-  const teacher = findTeacher(room.responsibleTeacherId);
+  const teachers = getRoomTeachers(room.id);
   els.pageSubtitle.textContent = room.name;
   els.roomTitle.textContent = room.name;
-  els.roomMeta.textContent = `${room.type === "fixed_schedule" ? "Klassensaal mit fixem Stundenplan" : "Frei buchbarer Raum"} · ${room.building} · ${room.floor || "-"} · ${room.capacity || "-"} Plaetze`;
+  els.roomMeta.textContent = `${room.type === "fixed_schedule" ? "Klassensaal mit fixem Stundenplan" : "Frei buchbarer Raum"} · ${room.roomNumber || "Ohne Nummer"}`;
   els.roomTags.innerHTML = [
-    teacher ? `Zustaendig: ${teacher.name}` : null,
+    teachers.length ? `Zugewiesen: ${teachers.map((teacher) => teacher.name).join(", ")}` : "Keine Zuweisung",
     room.active ? "Aktiv" : "Inaktiv"
   ].filter(Boolean).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("");
   els.scheduleActions.classList.toggle("hidden", room.type !== "fixed_schedule" || !canEditRoomSchedule(room));
@@ -939,11 +1068,268 @@ function renderMyReservations() {
   });
 }
 
+function renderGeneralCalendar() {
+  const monthValue = els.calendarMonth.value || formatMonthInput(new Date());
+  const [year, month] = monthValue.split("-").map(Number);
+  const firstDay = new Date(year, month - 1, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const gridStart = addDays(firstDay, -startOffset);
+  const cells = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+
+  els.generalCalendarGrid.innerHTML = `
+    ${DAYS.map((day) => `<div class="month-head">${day}</div>`).join("")}
+    ${cells.map((date) => {
+      const key = formatDate(date);
+      const inMonth = date.getMonth() === month - 1;
+      const holiday = getHolidayForDate(key);
+      const events = state.calendarEvents.filter((event) => event.date === key);
+      const dayEvents = [
+        holiday ? `<span class="month-chip holiday-chip">Ferien: ${escapeHtml(holiday.name)}</span>` : "",
+        ...events.map((event) => {
+          const slot = event.slotId ? getSlotForDay(getDayName(parseDate(event.date)), event.slotId) : null;
+          return `<span class="month-chip">${slot ? `${slot.start}-${slot.end} ` : ""}${escapeHtml(event.title)}</span>`;
+        })
+      ].filter(Boolean).join("");
+      return `
+        <div class="month-cell ${inMonth ? "" : "muted-cell"}">
+          <strong>${date.getDate()}</strong>
+          ${dayEvents || `<span class="month-empty"> </span>`}
+        </div>
+      `;
+    }).join("")}
+  `;
+}
+
+function openCalendarEventForm() {
+  const defaultDate = `${els.calendarMonth.value || formatMonthInput(new Date())}-01`;
+  openModal("Termin eintragen", `
+    <form id="calendar-event-form" class="form-stack">
+      <label>Titel<input name="title" placeholder="z. B. Elternabend" required></label>
+      <label>Datum<input name="date" type="date" value="${defaultDate}" required></label>
+      <label>Zeit<select name="slotId">
+        ${bookableSlotRows().map((slot) => `<option value="${slot.id}">${escapeHtml(slot.label)}</option>`).join("")}
+      </select></label>
+      <label>Notiz<textarea name="note" rows="3" placeholder="Optional"></textarea></label>
+      <button class="primary-button" type="submit">Termin speichern</button>
+    </form>
+  `);
+
+  document.getElementById("calendar-event-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const calendarEvent = {
+      id: uniqueId("evt"),
+      title: String(data.get("title")).trim(),
+      date: data.get("date"),
+      slotId: data.get("slotId"),
+      note: String(data.get("note") || "").trim(),
+      createdBy: currentUser.id
+    };
+    const remote = await remoteInsert("calendar_events", {
+      id: calendarEvent.id,
+      title: calendarEvent.title,
+      date: calendarEvent.date,
+      slot_id: calendarEvent.slotId,
+      note: calendarEvent.note,
+      created_by: calendarEvent.createdBy
+    });
+    if (!remote.ok) {
+      showToast(remote.message, "error");
+      return;
+    }
+    state.calendarEvents.push(calendarEvent);
+    saveData();
+    closeModal();
+    renderGeneralCalendar();
+    showToast("Der Termin wurde eingetragen.", "success");
+  });
+}
+
+function renderMaterials() {
+  els.materialAdminButton.classList.toggle("hidden", !isAdmin());
+  const materials = state.materials.filter((material) => material.active !== false);
+  els.materialGrid.innerHTML = materials.map((material) => {
+    const upcoming = state.materialReservations
+      .filter((reservation) => reservation.materialId === material.id && reservation.returned !== true)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 3)
+      .map((reservation) => {
+        const teacher = findTeacher(reservation.teacherId);
+        const slot = getSlotForDay(getDayName(parseDate(reservation.date)), reservation.slotId);
+        return `${formatUiDate(parseDate(reservation.date))}, ${slot.start}-${slot.end}: ${teacher?.name || "-"}`;
+      });
+    return `
+      <button class="room-card material-card" type="button" data-material-id="${material.id}">
+        <span class="room-icon">${escapeHtml(material.iconLabel || material.code || "MA")}</span>
+        <span class="room-card-title">${escapeHtml(material.name)}</span>
+        <span class="room-card-type">${escapeHtml(material.code || "Material")}</span>
+        <span class="room-card-meta">${upcoming.length ? escapeHtml(upcoming.join(" | ")) : "Noch keine Ausleihe eingetragen"}</span>
+        <span class="availability-pill">Ausleihen</span>
+      </button>
+    `;
+  }).join("") || `<p class="muted">Keine Materialien vorhanden.</p>`;
+
+  els.materialGrid.querySelectorAll("[data-material-id]").forEach((card) => {
+    card.addEventListener("click", () => openMaterialReservation(card.dataset.materialId));
+  });
+}
+
+function openMaterialReservation(materialId) {
+  const material = state.materials.find((item) => item.id === materialId);
+  if (!material) return;
+  openModal("Material ausleihen", `
+    <form id="material-reservation-form" class="form-stack">
+      <p class="muted">${escapeHtml(material.name)}</p>
+      <label>Datum<input name="date" type="date" value="${formatDate(new Date())}" required></label>
+      <label>Zeit<select name="slotId">
+        ${bookableSlotRows().map((slot) => `<option value="${slot.id}">${escapeHtml(slot.label)}</option>`).join("")}
+      </select></label>
+      <label>Notiz<textarea name="note" rows="3" placeholder="Optional"></textarea></label>
+      <button class="primary-button" type="submit">Ausleihe speichern</button>
+    </form>
+  `);
+
+  document.getElementById("material-reservation-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const date = String(data.get("date"));
+    const slotId = String(data.get("slotId"));
+    const conflict = state.materialReservations.some((reservation) =>
+      reservation.materialId === materialId && reservation.date === date && reservation.slotId === slotId && reservation.returned !== true
+    );
+    if (conflict) {
+      showToast("Dieses Material ist zu dieser Zeit schon ausgeliehen.", "error");
+      return;
+    }
+    const reservation = {
+      id: uniqueId("matres"),
+      materialId,
+      teacherId: currentUser.id,
+      date,
+      slotId,
+      note: String(data.get("note") || "").trim(),
+      returned: false
+    };
+    const remote = await remoteInsert("material_reservations", {
+      id: reservation.id,
+      material_id: reservation.materialId,
+      teacher_id: reservation.teacherId,
+      date: reservation.date,
+      slot_id: reservation.slotId,
+      note: reservation.note,
+      returned: false
+    });
+    if (!remote.ok) {
+      showToast(remote.message, "error");
+      return;
+    }
+    state.materialReservations.push(reservation);
+    saveData();
+    closeModal();
+    renderMaterials();
+    showToast("Das Material wurde reserviert.", "success");
+  });
+}
+
+function openMaterialAdmin() {
+  openModal("Material verwalten", `
+    <form id="material-admin-form" class="form-stack">
+      <label>Name<input name="name" placeholder="z. B. Dokumentenkamera" required></label>
+      <label>Code<input name="code" placeholder="DOKU"></label>
+      <label>Initialen<input name="iconLabel" maxlength="4" placeholder="DK"></label>
+      <button class="primary-button" type="submit">Material anlegen</button>
+    </form>
+  `);
+
+  document.getElementById("material-admin-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const material = {
+      id: uniqueId("mat"),
+      name: String(data.get("name")).trim(),
+      code: String(data.get("code") || "").trim().toUpperCase(),
+      iconLabel: String(data.get("iconLabel") || "").trim().slice(0, 4).toUpperCase(),
+      active: true
+    };
+    const remote = await remoteInsert("materials", {
+      id: material.id,
+      name: material.name,
+      code: material.code,
+      icon_label: material.iconLabel,
+      active: true
+    });
+    if (!remote.ok) {
+      showToast(remote.message, "error");
+      return;
+    }
+    state.materials.push(material);
+    saveData();
+    closeModal();
+    renderMaterials();
+    showToast("Das Material wurde angelegt.", "success");
+  });
+}
+
+function renderTeacherTimetables() {
+  els.teacherTimetableSelect.innerHTML = state.teachers
+    .filter((teacher) => teacher.active !== false)
+    .map((teacher) => `<option value="${teacher.id}">${escapeHtml(teacher.name)} (${getRoleLabel(teacher)})</option>`)
+    .join("");
+  if (!els.teacherTimetableSelect.value && state.teachers.length) {
+    els.teacherTimetableSelect.value = currentUser.id;
+  }
+  els.teacherTimetableActions.classList.toggle("hidden", !isAdmin());
+  renderTeacherTimetable();
+}
+
+function renderTeacherTimetable() {
+  const teacherId = els.teacherTimetableSelect.value || currentUser.id;
+  const timetable = state.teacherTimetables
+    .filter((item) => item.teacherId === teacherId)
+    .sort((a, b) => String(b.uploadedAt || "").localeCompare(String(a.uploadedAt || "")))[0];
+  if (!timetable) {
+    els.teacherTimetablePreview.innerHTML = `<p class="muted">Noch kein PDF-Stundenplan fuer diese Lehrperson hinterlegt.</p>`;
+    return;
+  }
+  els.teacherTimetablePreview.innerHTML = `
+    <div class="pdf-toolbar">
+      <strong>${escapeHtml(timetable.fileName || "Stundenplan.pdf")}</strong>
+      <span>${escapeHtml(timetable.schoolYear || "aktuelles Schuljahr")}</span>
+    </div>
+    <object data="${escapeHtml(timetable.fileUrl)}" type="application/pdf" class="pdf-frame">
+      <a href="${escapeHtml(timetable.fileUrl)}" target="_blank" rel="noreferrer">PDF oeffnen</a>
+    </object>
+  `;
+}
+
+function saveTeacherTimetablePreview() {
+  const file = els.teacherTimetableFile.files?.[0];
+  const teacherId = els.teacherTimetableSelect.value;
+  if (!file || !teacherId) {
+    showToast("Bitte zuerst eine Lehrperson und eine PDF-Datei waehlen.", "error");
+    return;
+  }
+  const localUrl = URL.createObjectURL(file);
+  state.teacherTimetables = state.teacherTimetables.filter((item) => item.teacherId !== teacherId || !String(item.fileUrl).startsWith("blob:"));
+  state.teacherTimetables.push({
+    id: uniqueId("ttpdf"),
+    teacherId,
+    schoolYear: `${state.meta.schoolYearStart.slice(0, 4)}/${state.meta.schoolYearEnd.slice(0, 4)}`,
+    fileName: file.name,
+    fileUrl: localUrl,
+    uploadedBy: currentUser.id,
+    uploadedAt: new Date().toISOString()
+  });
+  renderTeacherTimetable();
+  showToast("Das PDF wird lokal als Vorschau angezeigt.", "success");
+}
+
 function renderAdmin() {
   if (!isAdmin()) {
     showView("rooms");
     return;
   }
+  populateRoleSelect();
   renderTeacherSelect();
   renderTeacherList();
   renderAdminRoomList();
@@ -951,9 +1337,47 @@ function renderAdmin() {
   renderBlockTools();
 }
 
+function showAdminHome() {
+  activeAdminSection = null;
+  els.adminHome.classList.remove("hidden");
+  els.adminDetail.classList.add("hidden");
+  hideAdminPanels();
+}
+
+function showAdminSection(section) {
+  activeAdminSection = section;
+  els.adminHome.classList.add("hidden");
+  els.adminDetail.classList.remove("hidden");
+  hideAdminPanels();
+  const panels = {
+    teachers: els.adminTeachersPanel,
+    rooms: els.adminRoomsPanel,
+    holidays: els.adminHolidaysPanel,
+    blocks: els.adminBlocksPanel,
+    import: els.adminImportPanel,
+    settings: els.adminSettingsPanel
+  };
+  panels[section]?.classList.remove("hidden");
+}
+
+function hideAdminPanels() {
+  [
+    els.adminTeachersPanel,
+    els.adminRoomsPanel,
+    els.adminHolidaysPanel,
+    els.adminBlocksPanel,
+    els.adminImportPanel,
+    els.adminSettingsPanel
+  ].forEach((panel) => panel?.classList.add("hidden"));
+}
+
+function populateRoleSelect() {
+  els.teacherRoleSelect.innerHTML = teacherTypeOptions("tap");
+}
+
 function renderTeacherSelect() {
   els.roomResponsibleSelect.innerHTML = `<option value="">Keine zustaendige Lehrperson</option>` + state.teachers
-    .filter((teacher) => teacher.teacherType === "class_teacher")
+    .filter((teacher) => canTeacherManageRooms(teacher) && teacher.active !== false)
     .map((teacher) => `<option value="${teacher.id}">${escapeHtml(teacher.name)}</option>`)
     .join("");
 }
@@ -963,14 +1387,14 @@ function renderTeacherList() {
     <div class="compact-item">
       <div>
         <strong>${escapeHtml(teacher.name)}</strong>
+        <span>Saal: ${escapeHtml(getTeacherRoomNames(teacher.id) || "Keine Zuweisung")}</span>
         <span>${escapeHtml(teacher.username)} · ${getRoleLabel(teacher)}</span>
       </div>
       <div class="compact-actions">
         <select data-role-teacher="${teacher.id}" ${teacher.id === "admin" ? "disabled" : ""} aria-label="Rolle fuer ${escapeHtml(teacher.name)}">
-          <option value="subject_teacher" ${teacher.teacherType === "subject_teacher" ? "selected" : ""}>Nebenfachlehrer/in</option>
-          <option value="class_teacher" ${teacher.teacherType === "class_teacher" ? "selected" : ""}>Klassenlehrer/in</option>
-          <option value="admin" ${teacher.role === "admin" ? "selected" : ""}>Admin</option>
+          ${teacherTypeOptions(teacher.role === "admin" ? "admin" : teacher.teacherType)}
         </select>
+        <button class="secondary-button" data-assign-teacher="${teacher.id}" type="button">Saal zuweisen</button>
         ${teacher.id === "admin" ? "" : `<button class="text-danger" data-delete-teacher="${teacher.id}" type="button">Loeschen</button>`}
       </div>
     </div>
@@ -983,6 +1407,10 @@ function renderTeacherList() {
   els.teacherList.querySelectorAll("[data-delete-teacher]").forEach((button) => {
     button.addEventListener("click", () => deleteTeacher(button.dataset.deleteTeacher));
   });
+
+  els.teacherList.querySelectorAll("[data-assign-teacher]").forEach((button) => {
+    button.addEventListener("click", () => openTeacherRoomAssignment(button.dataset.assignTeacher));
+  });
 }
 
 function renderAdminRoomList() {
@@ -990,9 +1418,11 @@ function renderAdminRoomList() {
     <div class="compact-item">
       <div>
         <strong>${escapeHtml(room.name)}</strong>
-        <span>${room.type === "fixed_schedule" ? "Klassensaal" : "Buchbarer Raum"} · ${room.active ? "aktiv" : "inaktiv"}</span>
+        <span>${escapeHtml(room.roomNumber || "Ohne Nummer")} - ${room.type === "fixed_schedule" ? "Klassensaal" : "Buchbarer Raum"} - ${room.active ? "aktiv" : "inaktiv"}</span>
+        <span>Zugewiesen: ${escapeHtml(getRoomTeachers(room.id).map((teacher) => teacher.name).join(", ") || "Keine Zuweisung")}</span>
       </div>
       <div class="compact-actions">
+        <button class="secondary-button" data-edit-room="${room.id}" type="button">Bearbeiten</button>
         <button class="secondary-button" data-toggle-room="${room.id}" type="button">${room.active ? "Deaktivieren" : "Aktivieren"}</button>
         <button class="text-danger" data-delete-room="${room.id}" type="button">Loeschen</button>
       </div>
@@ -1016,6 +1446,10 @@ function renderAdminRoomList() {
 
   els.adminRoomList.querySelectorAll("[data-delete-room]").forEach((button) => {
     button.addEventListener("click", () => deleteRoom(button.dataset.deleteRoom));
+  });
+
+  els.adminRoomList.querySelectorAll("[data-edit-room]").forEach((button) => {
+    button.addEventListener("click", () => openRoomEditForm(button.dataset.editRoom));
   });
 }
 
@@ -1115,7 +1549,7 @@ async function deleteTeacher(teacherId) {
   }
 
   const reservationCount = state.reservations.filter((reservation) => reservation.teacherId === teacherId).length;
-  const roomCount = state.rooms.filter((room) => room.responsibleTeacherId === teacherId).length;
+  const roomCount = (state.roomTeachers || []).filter((item) => item.teacherId === teacherId).length;
   const confirmed = window.confirm(
     `${teacher.name} wirklich loeschen?\n\n` +
     `${reservationCount} Reservierung(en) werden entfernt.\n` +
@@ -1134,6 +1568,7 @@ async function deleteTeacher(teacherId) {
   state.rooms.forEach((room) => {
     if (room.responsibleTeacherId === teacherId) room.responsibleTeacherId = null;
   });
+  state.roomTeachers = (state.roomTeachers || []).filter((item) => item.teacherId !== teacherId);
   state.fixedSchedule.forEach((entry) => {
     if (entry.teacherId === teacherId) entry.teacherId = "";
   });
@@ -1172,19 +1607,24 @@ async function updateTeacherRole(teacherId, roleValue) {
 async function handleCreateRoom(event) {
   event.preventDefault();
   const data = new FormData(event.target);
+  const responsibleTeacherId = data.get("responsibleTeacherId") || null;
   const room = {
     id: uniqueId("r"),
     name: data.get("name"),
+    roomNumber: data.get("roomNumber") || "",
+    iconLabel: String(data.get("iconLabel") || "").trim().slice(0, 4).toUpperCase(),
     type: data.get("type"),
-    building: data.get("building") || "Hauptgebaeude",
-    floor: data.get("floor") || "",
-    capacity: Number(data.get("capacity")) || 0,
-    responsibleTeacherId: data.get("responsibleTeacherId") || null,
+    building: "",
+    floor: "",
+    capacity: 0,
+    responsibleTeacherId,
     active: true
   };
   const remote = await remoteInsert("rooms", {
     id: room.id,
     name: room.name,
+    room_number: room.roomNumber,
+    icon_label: room.iconLabel,
     type: room.type,
     building: room.building,
     floor: room.floor,
@@ -1198,10 +1638,163 @@ async function handleCreateRoom(event) {
   }
 
   state.rooms.push(room);
+  if (responsibleTeacherId) {
+    const assigned = { roomId: room.id, teacherId: responsibleTeacherId, relationType: "responsible" };
+    const assignmentRemote = await remoteInsert("room_teachers", {
+      room_id: assigned.roomId,
+      teacher_id: assigned.teacherId,
+      relation_type: assigned.relationType
+    });
+    if (assignmentRemote.ok) state.roomTeachers.push(assigned);
+  }
   saveData();
   event.target.reset();
   renderAdmin();
   showToast("Der Raum wurde angelegt.", "success");
+}
+
+function openRoomEditForm(roomId) {
+  const room = findRoom(roomId);
+  if (!room) return;
+  const assignedIds = getRoomTeacherIds(roomId);
+  const teacherChecks = state.teachers
+    .filter((teacher) => teacher.role !== "admin" && teacher.active !== false)
+    .map((teacher) => `
+      <label class="check-label">
+        <input type="checkbox" name="teacherIds" value="${teacher.id}" ${assignedIds.includes(teacher.id) ? "checked" : ""}>
+        ${escapeHtml(teacher.name)} (${getRoleLabel(teacher)})
+      </label>
+    `).join("");
+
+  openModal("Raum bearbeiten", `
+    <form id="room-edit-form" class="form-stack">
+      <label>Raumname<input name="name" value="${escapeHtml(room.name)}" required></label>
+      <label>Saalnummer<input name="roomNumber" value="${escapeHtml(room.roomNumber || "")}"></label>
+      <label>Initialen<input name="iconLabel" maxlength="4" value="${escapeHtml(room.iconLabel || getRoomIcon(room))}"></label>
+      <label>Raumtyp<select name="type">
+        <option value="fixed_schedule" ${room.type === "fixed_schedule" ? "selected" : ""}>Klassensaal</option>
+        <option value="free_booking" ${room.type === "free_booking" ? "selected" : ""}>Frei buchbarer Raum</option>
+      </select></label>
+      <div class="checkbox-group">${teacherChecks || `<p class="muted">Keine Lehrpersonen vorhanden.</p>`}</div>
+      <button class="primary-button" type="submit">Speichern</button>
+    </form>
+  `);
+
+  document.getElementById("room-edit-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.target);
+    const teacherIds = form.getAll("teacherIds");
+    const next = {
+      name: String(form.get("name")).trim(),
+      roomNumber: String(form.get("roomNumber") || "").trim(),
+      iconLabel: String(form.get("iconLabel") || "").trim().slice(0, 4).toUpperCase(),
+      type: form.get("type"),
+      responsibleTeacherId: teacherIds[0] || null
+    };
+    const remote = await remoteUpdate("rooms", {
+      name: next.name,
+      room_number: next.roomNumber,
+      icon_label: next.iconLabel,
+      type: next.type,
+      responsible_teacher_id: next.responsibleTeacherId
+    }, { id: room.id });
+    if (!remote.ok) {
+      showToast(remote.message, "error");
+      return;
+    }
+    const assignment = await setRoomTeachers(room.id, teacherIds);
+    if (!assignment.ok) {
+      showToast(assignment.message, "error");
+      return;
+    }
+    Object.assign(room, next);
+    saveData();
+    closeModal();
+    renderAdmin();
+    renderRoomOverview();
+    if (selectedRoomId === room.id) showRoomDetail();
+    showToast("Der Raum wurde aktualisiert.", "success");
+  });
+}
+
+function openTeacherRoomAssignment(teacherId) {
+  const teacher = findTeacher(teacherId);
+  if (!teacher) return;
+  const assignedRoomIds = (state.roomTeachers || [])
+    .filter((item) => item.teacherId === teacherId)
+    .map((item) => item.roomId);
+  const roomChecks = state.rooms.map((room) => `
+    <label class="check-label">
+      <input type="checkbox" name="roomIds" value="${room.id}" ${assignedRoomIds.includes(room.id) ? "checked" : ""}>
+      ${escapeHtml(room.name)} (${escapeHtml(room.roomNumber || "ohne Nummer")})
+    </label>
+  `).join("");
+
+  openModal("Saal zuweisen", `
+    <form id="teacher-room-form" class="form-stack">
+      <p class="muted">${escapeHtml(teacher.name)}</p>
+      <div class="checkbox-group">${roomChecks}</div>
+      <button class="primary-button" type="submit">Speichern</button>
+    </form>
+  `);
+
+  document.getElementById("teacher-room-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.target);
+    const roomIds = form.getAll("roomIds");
+    const result = await setTeacherRooms(teacher.id, roomIds);
+    if (!result.ok) {
+      showToast(result.message, "error");
+      return;
+    }
+    saveData();
+    closeModal();
+    renderAdmin();
+    renderRoomOverview();
+    showToast("Die Saalzuweisung wurde gespeichert.", "success");
+  });
+}
+
+async function setRoomTeachers(roomId, teacherIds) {
+  const remoteDeleteResult = await remoteDelete("room_teachers", { room_id: roomId });
+  if (!remoteDeleteResult.ok) return remoteDeleteResult;
+  const rows = teacherIds.map((teacherId) => ({
+    room_id: roomId,
+    teacher_id: teacherId,
+    relation_type: "responsible"
+  }));
+  if (rows.length) {
+    const remoteInsertResult = await remoteInsert("room_teachers", rows);
+    if (!remoteInsertResult.ok) return remoteInsertResult;
+  }
+  state.roomTeachers = (state.roomTeachers || []).filter((item) => item.roomId !== roomId);
+  state.roomTeachers.push(...teacherIds.map((teacherId) => ({ roomId, teacherId, relationType: "responsible" })));
+  return { ok: true };
+}
+
+async function setTeacherRooms(teacherId, roomIds) {
+  const remoteDeleteResult = await remoteDelete("room_teachers", { teacher_id: teacherId });
+  if (!remoteDeleteResult.ok) return remoteDeleteResult;
+  const rows = roomIds.map((roomId) => ({
+    room_id: roomId,
+    teacher_id: teacherId,
+    relation_type: "responsible"
+  }));
+  if (rows.length) {
+    const remoteInsertResult = await remoteInsert("room_teachers", rows);
+    if (!remoteInsertResult.ok) return remoteInsertResult;
+  }
+  state.roomTeachers = (state.roomTeachers || []).filter((item) => item.teacherId !== teacherId);
+  state.roomTeachers.push(...roomIds.map((roomId) => ({ roomId, teacherId, relationType: "responsible" })));
+  for (const room of state.rooms) {
+    if (roomIds.includes(room.id) && !room.responsibleTeacherId) room.responsibleTeacherId = teacherId;
+    if (!getRoomTeacherIds(room.id).includes(room.responsibleTeacherId)) {
+      room.responsibleTeacherId = getRoomTeacherIds(room.id)[0] || null;
+    }
+    const updateResult = await remoteUpdate("rooms", { responsible_teacher_id: room.responsibleTeacherId }, { id: room.id });
+    if (!updateResult.ok) return updateResult;
+  }
+  return { ok: true };
 }
 
 async function deleteRoom(roomId) {
@@ -1227,6 +1820,7 @@ async function deleteRoom(roomId) {
   state.manualReleases = state.manualReleases.filter((release) => release.roomId !== roomId);
   state.reservations = state.reservations.filter((reservation) => reservation.roomId !== roomId);
   state.roomBlocks = state.roomBlocks.filter((block) => block.roomId !== roomId);
+  state.roomTeachers = (state.roomTeachers || []).filter((item) => item.roomId !== roomId);
 
   if (selectedRoomId === roomId) {
     selectedRoomId = null;
@@ -1390,7 +1984,7 @@ function canModifyWeek(weekStart) {
 }
 
 function canEditRoomSchedule(room) {
-  return isAdmin() || (currentUser?.teacherType === "class_teacher" && room?.responsibleTeacherId === currentUser.id);
+  return isAdmin() || (canTeacherManageRooms(currentUser) && getRoomTeacherIds(room?.id).includes(currentUser.id));
 }
 
 function canReleaseSlot(room) {
@@ -1408,6 +2002,9 @@ function isAdmin(user = currentUser) {
 function refreshCurrentView() {
   if (currentView === "roomDetail") renderCalendar();
   if (currentView === "rooms") renderRoomOverview();
+  if (currentView === "calendar") renderGeneralCalendar();
+  if (currentView === "materials") renderMaterials();
+  if (currentView === "teacher-timetables") renderTeacherTimetables();
   if (currentView === "myReservations") renderMyReservations();
   if (currentView === "admin") renderAdmin();
 }
@@ -1426,6 +2023,14 @@ function countBookableSlots(roomId, weekStart) {
     });
   });
   return count;
+}
+
+function countFreeSlotsOnDate(roomId, date) {
+  const day = getDayName(parseDate(date));
+  return getSlotsForDay(day).filter((slot) => {
+    const statusInfo = getCellStatus(roomId, date, day, slot.id);
+    return ["free_bookable", "released", "holiday_free"].includes(statusInfo.kind);
+  }).length;
 }
 
 function getWeekDates(weekStart) {
@@ -1454,8 +2059,7 @@ function findReservation(roomId, date, slotId) {
 
 function getRoleLabel(user) {
   if (user.role === "admin") return "Admin";
-  if (user.teacherType === "class_teacher") return "Klassenlehrer/in";
-  return "Nebenfachlehrer/in";
+  return getTeacherTypeLabel(user.teacherType);
 }
 
 function getStorageModeLabel() {
@@ -1478,6 +2082,42 @@ function teacherOptions(selectedTeacherId) {
     .filter((teacher) => teacher.role !== "admin")
     .map((teacher) => `<option value="${teacher.id}" ${teacher.id === selectedTeacherId ? "selected" : ""}>${escapeHtml(teacher.name)}</option>`)
     .join("");
+}
+
+function getTeacherTypeLabel(type) {
+  return TEACHER_TYPES.find((item) => item.id === type)?.label || type || "Lehrperson";
+}
+
+function canTeacherManageRooms(user) {
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  return TEACHER_TYPES.find((item) => item.id === user.teacherType)?.canManageRooms === true;
+}
+
+function teacherTypeOptions(selectedType) {
+  return TEACHER_TYPES.map((type) => `<option value="${type.id}" ${type.id === selectedType ? "selected" : ""}>${escapeHtml(type.label)}</option>`).join("");
+}
+
+function getRoomTeacherIds(roomId) {
+  return (state.roomTeachers || [])
+    .filter((item) => item.roomId === roomId)
+    .map((item) => item.teacherId);
+}
+
+function getRoomTeachers(roomId) {
+  return getRoomTeacherIds(roomId).map(findTeacher).filter(Boolean);
+}
+
+function getTeacherRoomNames(teacherId) {
+  return (state.roomTeachers || [])
+    .filter((item) => item.teacherId === teacherId)
+    .map((item) => findRoom(item.roomId)?.name)
+    .filter(Boolean)
+    .join(", ");
+}
+
+function getPrimaryRoomTeacher(room) {
+  return getRoomTeachers(room.id)[0] || findTeacher(room.responsibleTeacherId);
 }
 
 function renderDatePicker() {
@@ -1518,6 +2158,7 @@ function getDayName(date) {
 }
 
 function getRoomIcon(room) {
+  if (room.iconLabel) return room.iconLabel;
   if (room.type === "fixed_schedule") return "KS";
   if (room.name.toLowerCase().includes("musik")) return "MU";
   if (room.name.toLowerCase().includes("informatik")) return "IT";
@@ -1566,6 +2207,10 @@ function uniqueId(prefix) {
 
 function formatUiDate(date) {
   return new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+}
+
+function formatMonthInput(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function parseDate(value) {
