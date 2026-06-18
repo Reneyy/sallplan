@@ -4,7 +4,102 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SallPlan</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./style.css?v=20260618-2">
+    <style>
+      .hidden { display: none !important; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f6f7fb;
+        color: #1f2937;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .login-screen {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .login-panel {
+        width: min(420px, 100%);
+        background: #fff;
+        border: 1px solid #d8dee9;
+        border-radius: 8px;
+        padding: 32px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+      }
+      .brand-mark {
+        display: inline-grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        background: #111827;
+        color: white;
+        font-weight: 800;
+      }
+      .form-stack { display: grid; gap: 14px; }
+      .login-message { min-height: 20px; margin: 0; color: #991b1b; font-weight: 700; }
+      label { display: grid; gap: 6px; color: #334155; font-size: .9rem; font-weight: 700; }
+      input, select, textarea {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #d8dee9;
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: white;
+        color: #1f2937;
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+        border: 0;
+        border-radius: 8px;
+        min-height: 38px;
+        padding: 9px 13px;
+        font: inherit;
+        font-weight: 800;
+      }
+      .primary-button { background: #2563eb; color: #fff; }
+      .ghost-button { background: #f1f5f9; color: #334155; }
+      .danger-button { background: #fee2e2; color: #991b1b; }
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px clamp(16px, 4vw, 36px);
+        background: rgba(255,255,255,.94);
+        border-bottom: 1px solid #d8dee9;
+      }
+      .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .view { width: min(1240px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 48px; }
+      .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+      .room-card, .admin-panel, .list-panel, .calendar-wrap {
+        background: #fff;
+        border: 1px solid #d8dee9;
+        border-radius: 8px;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+      }
+      .room-card { display: grid; gap: 8px; text-align: left; padding: 18px; color: inherit; }
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 70;
+        max-width: min(420px, calc(100vw - 36px));
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: #111827;
+        color: white;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+        opacity: 0;
+        transform: translateY(12px);
+        pointer-events: none;
+      }
+      .toast.show { opacity: 1; transform: translateY(0); }
+      .toast.error { background: #991b1b; }
+      .toast.success { background: #166534; }
+    </style>
   </head>
   <body>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -25,6 +120,7 @@
             <input id="login-password" type="password" autocomplete="current-password" required>
           </label>
           <button class="primary-button" type="submit">Einloggen</button>
+          <p id="login-message" class="login-message" role="alert" aria-live="polite"></p>
           <p class="hint">
             Demo-Zugang: <strong>admin</strong> / <strong>admin123</strong>.
             Weitere Passwoerter stehen in der README.
@@ -195,9 +291,9 @@
       </div>
     </div>
 
-    <script src="config.js"></script>
-    <script src="data.js"></script>
+    <script src="./config.js?v=20260618-2"></script>
+    <script src="./data.js?v=20260618-2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js"></script>
+    <script src="./app.js?v=20260618-2"></script>
   </body>
 </html>
