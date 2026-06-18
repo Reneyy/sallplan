@@ -34,6 +34,8 @@ Wenn deine Datenbank schon existiert, musst du `schema.sql` und `seed.sql` nicht
 supabase/migration_20260618_features.sql
 ```
 
+Diese Migration legt auch den geschuetzten Supabase-Storage-Bucket fuer PDF-Lehrerstundenplaene an.
+
 ## 2. Ersten Admin-Login anlegen
 
 1. In Supabase links auf **Authentication** klicken.

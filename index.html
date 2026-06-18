@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SallPlan</title>
-    <link rel="stylesheet" href="./style.css?v=20260618-4">
+    <link rel="stylesheet" href="./style.css?v=20260618-5">
     <style>
       .hidden { display: none !important; }
       body { margin: 0; min-height: 100vh; background: #f6f7fb; color: #1f2937; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -147,8 +147,8 @@
             <label>Lehrperson<select id="teacher-timetable-select"></select></label>
             <div id="teacher-timetable-actions" class="form-stack hidden">
               <label>PDF-Datei<input id="teacher-timetable-file" type="file" accept="application/pdf"></label>
-              <button id="teacher-timetable-save" class="primary-button" type="button">PDF lokal anzeigen</button>
-              <p class="hint">Supabase Storage wird spaeter fuer dauerhaft gespeicherte PDFs angebunden.</p>
+              <button id="teacher-timetable-save" class="primary-button" type="button">PDF hochladen</button>
+              <p class="hint">Das PDF wird in Supabase gespeichert und danach fuer eingeloggte Benutzer angezeigt.</p>
             </div>
           </div>
           <div id="teacher-timetable-preview" class="pdf-preview"></div>
@@ -243,9 +243,9 @@
       </div>
     </div>
 
-    <script src="./config.js?v=20260618-4"></script>
-    <script src="./data.js?v=20260618-4"></script>
+    <script src="./config.js?v=20260618-5"></script>
+    <script src="./data.js?v=20260618-5"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=20260618-4"></script>
+    <script src="./app.js?v=20260618-5"></script>
   </body>
 </html>

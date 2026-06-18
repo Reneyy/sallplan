@@ -58,7 +58,7 @@ function bindEvents() {
   els.calendarMonth.addEventListener("change", renderGeneralCalendar);
   els.calendarEventButton.addEventListener("click", openCalendarEventForm);
   els.materialAdminButton.addEventListener("click", openMaterialAdmin);
-  els.teacherTimetableSelect.addEventListener("change", renderTeacherTimetable);
+  els.teacherTimetableSelect.addEventListener("change", () => renderTeacherTimetable());
   els.teacherTimetableSave.addEventListener("click", saveTeacherTimetablePreview);
   els.prevWeek.addEventListener("click", () => changeWeek(-7));
   els.nextWeek.addEventListener("click", () => changeWeek(7));
@@ -1282,7 +1282,7 @@ function renderTeacherTimetables() {
   renderTeacherTimetable();
 }
 
-function renderTeacherTimetable() {
+async function renderTeacherTimetable() {
   const teacherId = els.teacherTimetableSelect.value || currentUser.id;
   const timetable = state.teacherTimetables
     .filter((item) => item.teacherId === teacherId)
@@ -1291,24 +1291,88 @@ function renderTeacherTimetable() {
     els.teacherTimetablePreview.innerHTML = `<p class="muted">Noch kein PDF-Stundenplan fuer diese Lehrperson hinterlegt.</p>`;
     return;
   }
+  const pdfUrl = await getTeacherTimetableUrl(timetable);
+  if (!pdfUrl) {
+    els.teacherTimetablePreview.innerHTML = `<p class="muted">Das PDF konnte nicht geladen werden. Bitte pruefe Supabase Storage.</p>`;
+    return;
+  }
   els.teacherTimetablePreview.innerHTML = `
     <div class="pdf-toolbar">
       <strong>${escapeHtml(timetable.fileName || "Stundenplan.pdf")}</strong>
       <span>${escapeHtml(timetable.schoolYear || "aktuelles Schuljahr")}</span>
     </div>
-    <object data="${escapeHtml(timetable.fileUrl)}" type="application/pdf" class="pdf-frame">
-      <a href="${escapeHtml(timetable.fileUrl)}" target="_blank" rel="noreferrer">PDF oeffnen</a>
+    <object data="${escapeHtml(pdfUrl)}" type="application/pdf" class="pdf-frame">
+      <a href="${escapeHtml(pdfUrl)}" target="_blank" rel="noreferrer">PDF oeffnen</a>
     </object>
   `;
 }
 
-function saveTeacherTimetablePreview() {
+async function getTeacherTimetableUrl(timetable) {
+  if (!timetable?.fileUrl) return "";
+  if (timetable.fileUrl.startsWith("blob:") || timetable.fileUrl.startsWith("http")) return timetable.fileUrl;
+  if (!isSupabaseMode()) return timetable.fileUrl;
+  const { data, error } = await getSupabaseClient()
+    .storage
+    .from("teacher-timetables")
+    .createSignedUrl(timetable.fileUrl, 60 * 60);
+  if (error) {
+    showToast(error.message, "error");
+    return "";
+  }
+  return data.signedUrl;
+}
+
+async function saveTeacherTimetablePreview() {
   const file = els.teacherTimetableFile.files?.[0];
   const teacherId = els.teacherTimetableSelect.value;
   if (!file || !teacherId) {
     showToast("Bitte zuerst eine Lehrperson und eine PDF-Datei waehlen.", "error");
     return;
   }
+  if (file.type !== "application/pdf") {
+    showToast("Bitte eine PDF-Datei auswaehlen.", "error");
+    return;
+  }
+
+  if (isSupabaseMode()) {
+    const client = getSupabaseClient();
+    const filePath = `${teacherId}/${Date.now()}-${safeFileName(file.name)}`;
+    const { error: uploadError } = await client
+      .storage
+      .from("teacher-timetables")
+      .upload(filePath, file, {
+        contentType: "application/pdf",
+        cacheControl: "3600",
+        upsert: false
+      });
+    if (uploadError) {
+      showToast(`PDF konnte nicht hochgeladen werden: ${uploadError.message}`, "error");
+      return;
+    }
+
+    const record = {
+      id: uniqueId("ttpdf"),
+      teacher_id: teacherId,
+      school_year: `${state.meta.schoolYearStart.slice(0, 4)}/${state.meta.schoolYearEnd.slice(0, 4)}`,
+      file_name: file.name,
+      file_url: filePath,
+      uploaded_by: currentUser.id
+    };
+    const remote = await remoteInsert("teacher_timetables", record);
+    if (!remote.ok) {
+      showToast(remote.message, "error");
+      return;
+    }
+    state.teacherTimetables.push(mapTeacherTimetableFromDb({
+      ...record,
+      uploaded_at: new Date().toISOString()
+    }));
+    els.teacherTimetableFile.value = "";
+    await renderTeacherTimetable();
+    showToast("Das PDF wurde hochgeladen.", "success");
+    return;
+  }
+
   const localUrl = URL.createObjectURL(file);
   state.teacherTimetables = state.teacherTimetables.filter((item) => item.teacherId !== teacherId || !String(item.fileUrl).startsWith("blob:"));
   state.teacherTimetables.push({
@@ -2203,6 +2267,16 @@ async function copyRoomLink() {
 
 function uniqueId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function safeFileName(name) {
+  return String(name || "stundenplan.pdf")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 120) || "stundenplan.pdf";
 }
 
 function formatUiDate(date) {
